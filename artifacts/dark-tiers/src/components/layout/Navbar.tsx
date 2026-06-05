@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useGetMe, useLogout } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, ShieldAlert } from "lucide-react";
+import { motion } from "framer-motion";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -28,21 +29,37 @@ export function Navbar() {
     <nav className="border-b border-white/5 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">
-            DARK TIERS
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <motion.img
+              src="/dark-tiers-logo.png"
+              alt="DARK TIERS"
+              className="w-9 h-9 object-contain"
+              whileHover={{ scale: 1.1, rotate: -5 }}
+              transition={{ type: "spring", stiffness: 400, damping: 15 }}
+            />
+            <span className="text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-300 to-violet-500 group-hover:from-purple-200 group-hover:via-violet-400 group-hover:to-purple-600 transition-all duration-300">
+              DARK TIERS
+            </span>
           </Link>
           <div className="hidden md:flex items-center gap-1">
             {navLinks.map(link => (
-              <Link 
-                key={link.href} 
-                href={link.href} 
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  location === link.href || location.startsWith(link.href + "/") 
-                    ? "bg-primary/20 text-primary" 
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`relative px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  location === link.href || location.startsWith(link.href + "/")
+                    ? "text-white"
                     : "text-muted-foreground hover:text-white hover:bg-white/5"
                 }`}
               >
-                {link.label}
+                {(location === link.href || location.startsWith(link.href + "/")) && (
+                  <motion.span
+                    layoutId="nav-pill"
+                    className="absolute inset-0 bg-primary/20 rounded-md"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10">{link.label}</span>
               </Link>
             ))}
           </div>
@@ -51,7 +68,7 @@ export function Navbar() {
           {user ? (
             <div className="flex items-center gap-4">
               {(user.role === 'admin' || user.role === 'owner') && (
-                <Link href="/admin" className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1 bg-primary/10 px-3 py-1.5 rounded-md">
+                <Link href="/admin" className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1 bg-primary/10 px-3 py-1.5 rounded-md transition-colors">
                   <ShieldAlert className="w-4 h-4" /> <span className="hidden sm:inline">Admin</span>
                 </Link>
               )}
@@ -70,7 +87,10 @@ export function Navbar() {
               </Button>
             </div>
           ) : (
-            <Link href="/login" className="bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2 rounded-md text-sm font-semibold transition-all shadow-[0_0_15px_rgba(120,40,200,0.3)] hover:shadow-[0_0_25px_rgba(120,40,200,0.5)]">
+            <Link
+              href="/login"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2 rounded-md text-sm font-semibold transition-all shadow-[0_0_15px_rgba(120,40,200,0.3)] hover:shadow-[0_0_25px_rgba(120,40,200,0.5)]"
+            >
               Login
             </Link>
           )}

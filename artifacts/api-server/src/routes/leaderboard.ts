@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, playersTable, playerRatingsTable, tiersTable } from "@workspace/db";
+import { db, playersTable, playerRatingsTable, tiersTable, gamemodesTable } from "@workspace/db";
 import { eq, ilike, desc, sql, and } from "drizzle-orm";
 import { GetLeaderboardQueryParams } from "@workspace/api-zod";
 
@@ -175,5 +175,109 @@ async function formatEntries(
     })
   );
 }
+
+// Overall leaderboard: rank each player by their combined tier score across all gamemodes
+// Score = average tier rank (1=HT1 best, 10=LT5 worst). Lower score = higher overall rank.
+router.get("/leaderboard/overall", async (_req, res): Promise<void> => {
+  // Get all gamemodes
+  const gamemodes = await db.select().from(gamemodesTable).orderBy(gamemodesTable.id);
+
+  // Get all players who have at least one rating
+  const rows = await db.execute<{
+    player_id: number;
+    username: string;
+    uuid: string;
+    region: string;
+  }>(
+    sql`SELECT DISTINCT p.id AS player_id, p.username, p.uuid, p.region
+        FROM player_ratings pr
+        INNER JOIN players p ON pr.player_id = p.id
+        ORDER BY p.username`
+  );
+
+  const players = rows.rows;
+
+  // For each player, get all their gamemode ratings with tier info
+  const results = await Promise.all(
+    players.map(async (p) => {
+      const ratings = await db
+        .select({
+          gamemodeId: playerRatingsTable.gamemodeId,
+          rating: playerRatingsTable.rating,
+          tierId: playerRatingsTable.tierId,
+        })
+        .from(playerRatingsTable)
+        .where(eq(playerRatingsTable.playerId, Number(p.player_id)));
+
+      // Build per-gamemode tier map
+      const gamemodeRatings: Record<
+        number,
+        { tierName: string | null; tierColor: string | null; tierSlug: string | null; tierRank: number; rating: number }
+      > = {};
+
+      let totalTierRank = 0;
+      let rankedCount = 0;
+
+      for (const r of ratings) {
+        let tierName: string | null = null;
+        let tierColor: string | null = null;
+        let tierSlug: string | null = null;
+        let tierRank = 999;
+
+        if (r.tierId) {
+          const [tier] = await db.select().from(tiersTable).where(eq(tiersTable.id, r.tierId));
+          if (tier) {
+            tierName = tier.name;
+            tierColor = tier.color;
+            tierSlug = tier.slug;
+            tierRank = tier.rank;
+          }
+        }
+
+        gamemodeRatings[r.gamemodeId] = { tierName, tierColor, tierSlug, tierRank, rating: r.rating };
+        if (tierName) {
+          totalTierRank += tierRank;
+          rankedCount++;
+        }
+      }
+
+      const overallScore = rankedCount > 0 ? totalTierRank / rankedCount : 999;
+
+      return {
+        playerId: Number(p.player_id),
+        username: p.username,
+        uuid: p.uuid,
+        region: p.region,
+        overallScore,
+        rankedGamemodes: rankedCount,
+        gamemodeRatings,
+      };
+    })
+  );
+
+  // Sort by overallScore ascending (lower = better tiers), then by rankedGamemodes descending
+  results.sort((a, b) => {
+    if (a.overallScore !== b.overallScore) return a.overallScore - b.overallScore;
+    return b.rankedGamemodes - a.rankedGamemodes;
+  });
+
+  const formatted = results.map((r, idx) => ({
+    rank: idx + 1,
+    playerId: r.playerId,
+    username: r.username,
+    uuid: r.uuid,
+    region: r.region,
+    overallScore: Math.round(r.overallScore * 10) / 10,
+    rankedGamemodes: r.rankedGamemodes,
+    gamemodes: gamemodes.map((gm) => ({
+      gamemodeId: gm.id,
+      gamemodeName: gm.name,
+      gamemodeSlug: gm.slug,
+      ...( r.gamemodeRatings[gm.id] ?? { tierName: null, tierColor: null, tierSlug: null, tierRank: null, rating: null }),
+    })),
+  }));
+
+  res.json({ players: formatted, total: formatted.length });
+});
 
 export default router;
