@@ -1,6 +1,26 @@
 import { useListMatches } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
+import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
+import { Swords } from "lucide-react";
+
+const listVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+};
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+};
+
+function ModeBadge({ name }: { name: string }) {
+  return (
+    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-primary/15 text-primary border border-primary/30">
+      {name}
+    </span>
+  );
+}
 
 export default function Matches() {
   const { data, isLoading } = useListMatches({ limit: 50 });
@@ -8,70 +28,126 @@ export default function Matches() {
   return (
     <div className="flex-1 flex flex-col items-center py-8">
       <div className="w-full max-w-7xl px-4 flex flex-col gap-6">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight text-white">Match History</h1>
-          <p className="text-muted-foreground text-sm">Recent battles across the platform.</p>
-        </div>
 
-        <div className="glass-card rounded-xl overflow-hidden border border-white/10">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-muted-foreground uppercase bg-black/60 border-b border-white/10">
-                <tr>
-                  <th className="px-6 py-4 font-bold">Date</th>
-                  <th className="px-6 py-4 font-bold">Mode</th>
-                  <th className="px-6 py-4 font-bold">Winner</th>
-                  <th className="px-6 py-4 font-bold">Loser</th>
-                  <th className="px-6 py-4 font-bold">Score</th>
-                  <th className="px-6 py-4 font-bold text-right">Rating Δ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={i} className="border-b border-white/5 animate-pulse bg-white/5">
-                      <td colSpan={6} className="h-16"></td>
-                    </tr>
-                  ))
-                ) : data?.matches && data.matches.length > 0 ? (
-                  data.matches.map((match) => {
-                    const winnerName = match.winnerId === match.player1Id ? match.player1Name : match.player2Name;
-                    const loserName = match.winnerId === match.player1Id ? match.player2Name : match.player1Name;
-                    const winnerId = match.winnerId === match.player1Id ? match.player1Id : match.player2Id;
-                    const loserId = match.winnerId === match.player1Id ? match.player2Id : match.player1Id;
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-300 to-violet-500">
+            Match History
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">Recent battles across the platform.</p>
+        </motion.div>
 
-                    return (
-                      <tr key={match.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 text-muted-foreground">{format(new Date(match.playedAt), 'MMM d, yyyy HH:mm')}</td>
-                        <td className="px-6 py-4 font-medium">{match.gamemodeName}</td>
-                        <td className="px-6 py-4">
-                          <Link href={`/players/${winnerId}`} className="font-bold text-green-400 hover:text-green-300">
-                            {winnerName}
-                          </Link>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Link href={`/players/${loserId}`} className="font-medium text-red-400 hover:text-red-300">
-                            {loserName}
-                          </Link>
-                        </td>
-                        <td className="px-6 py-4 font-mono font-bold">{match.score}</td>
-                        <td className="px-6 py-4 text-right font-mono font-bold">
-                          {match.ratingChange ? `±${Math.abs(match.ratingChange)}` : "-"}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
-                      No matches found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 bg-white/5 rounded-2xl" />
+            ))}
           </div>
-        </div>
+        ) : data?.matches && data.matches.length > 0 ? (
+          <motion.div
+            variants={listVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            {data.matches.map((match) => {
+              const winnerId = match.winnerId === match.player1Id ? match.player1Id : match.player2Id;
+              const loserId = match.winnerId === match.player1Id ? match.player2Id : match.player1Id;
+              const winnerName = match.winnerId === match.player1Id ? match.player1Name : match.player2Name;
+              const loserName = match.winnerId === match.player1Id ? match.player2Name : match.player1Name;
+
+              return (
+                <motion.div
+                  key={match.id}
+                  variants={cardVariants}
+                  className="glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-primary/40 transition-colors duration-300"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-black/30 border-b border-white/5">
+                    <ModeBadge name={match.gamemodeName} />
+                    <div className="flex items-center gap-3">
+                      {match.score && (
+                        <span className="font-mono text-sm font-bold text-white/60">{match.score}</span>
+                      )}
+                      <span className="text-[10px] text-muted-foreground">
+                        {format(new Date(match.playedAt), "MMM d, HH:mm")}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Players */}
+                  <div className="px-4 py-3 flex flex-col gap-2">
+                    {/* Winner */}
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={`https://mc-heads.net/avatar/${encodeURIComponent(winnerName)}/32`}
+                        alt={winnerName}
+                        className="w-8 h-8 rounded bg-black flex-shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/32"; }}
+                      />
+                      <Link
+                        href={`/players/${winnerId}`}
+                        className="flex-1 font-black text-sm text-green-400 hover:text-green-300 transition-colors truncate"
+                      >
+                        {winnerName}
+                      </Link>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-green-500/15 text-green-400 border border-green-500/30 px-2 py-0.5 rounded flex-shrink-0">
+                        WIN
+                      </span>
+                      {match.ratingChange != null && (
+                        <span className="font-mono text-xs text-green-400 font-bold flex-shrink-0">
+                          +{Math.abs(match.ratingChange)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Divider */}
+                    <div className="flex items-center gap-2 px-1">
+                      <div className="flex-1 h-px bg-white/5" />
+                      <Swords className="w-3 h-3 text-muted-foreground/40 flex-shrink-0" />
+                      <div className="flex-1 h-px bg-white/5" />
+                    </div>
+
+                    {/* Loser */}
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={`https://mc-heads.net/avatar/${encodeURIComponent(loserName)}/32`}
+                        alt={loserName}
+                        className="w-8 h-8 rounded bg-black flex-shrink-0 opacity-60"
+                        onError={(e) => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/32"; }}
+                      />
+                      <Link
+                        href={`/players/${loserId}`}
+                        className="flex-1 font-medium text-sm text-red-400 hover:text-red-300 transition-colors truncate opacity-80"
+                      >
+                        {loserName}
+                      </Link>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/30 px-2 py-0.5 rounded flex-shrink-0">
+                        LOSS
+                      </span>
+                      {match.ratingChange != null && (
+                        <span className="font-mono text-xs text-red-400 font-bold flex-shrink-0">
+                          -{Math.abs(match.ratingChange)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="glass-card rounded-xl py-20 text-center text-muted-foreground"
+          >
+            No matches found.
+          </motion.div>
+        )}
       </div>
     </div>
   );
