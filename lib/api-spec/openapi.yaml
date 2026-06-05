@@ -3,20 +3,40 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: DARK TIERS Minecraft PvP Ranking Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: stats
+    description: Platform statistics
+  - name: players
+    description: Player management
+  - name: leaderboard
+    description: Leaderboards
+  - name: matches
+    description: Match system
+  - name: tiers
+    description: Tier management
+  - name: gamemodes
+    description: Gamemode management
+  - name: tests
+    description: Tier test system
+  - name: announcements
+    description: Announcements
+  - name: admin
+    description: Admin operations
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +44,1534 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # AUTH
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+
+  # STATS
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Platform statistics
+      responses:
+        "200":
+          description: Platform statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformStats"
+
+  /stats/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [stats]
+      summary: Recent platform activity (promotions, matches)
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecentActivity"
+
+  # GAMEMODES
+  /gamemodes:
+    get:
+      operationId: listGamemodes
+      tags: [gamemodes]
+      summary: List all gamemodes
+      responses:
+        "200":
+          description: List of gamemodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Gamemode"
+    post:
+      operationId: createGamemode
+      tags: [gamemodes]
+      summary: Create a gamemode (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GamemodeInput"
+      responses:
+        "201":
+          description: Created gamemode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gamemode"
+
+  /gamemodes/{id}:
+    patch:
+      operationId: updateGamemode
+      tags: [gamemodes]
+      summary: Update a gamemode (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GamemodeUpdate"
+      responses:
+        "200":
+          description: Updated gamemode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gamemode"
+    delete:
+      operationId: deleteGamemode
+      tags: [gamemodes]
+      summary: Delete a gamemode (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # TIERS
+  /tiers:
+    get:
+      operationId: listTiers
+      tags: [tiers]
+      summary: List all tiers
+      parameters:
+        - name: gamemodeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of tiers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tier"
+    post:
+      operationId: createTier
+      tags: [tiers]
+      summary: Create a tier (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TierInput"
+      responses:
+        "201":
+          description: Created tier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tier"
+
+  /tiers/{id}:
+    patch:
+      operationId: updateTier
+      tags: [tiers]
+      summary: Update a tier (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TierUpdate"
+      responses:
+        "200":
+          description: Updated tier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tier"
+    delete:
+      operationId: deleteTier
+      tags: [tiers]
+      summary: Delete a tier (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # PLAYERS
+  /players:
+    get:
+      operationId: listPlayers
+      tags: [players]
+      summary: List players with optional filters
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: gamemodeId
+          in: query
+          schema:
+            type: integer
+        - name: region
+          in: query
+          schema:
+            type: string
+        - name: tierId
+          in: query
+          schema:
+            type: integer
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paginated player list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerList"
+    post:
+      operationId: createPlayer
+      tags: [players]
+      summary: Create a player (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerInput"
+      responses:
+        "201":
+          description: Created player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+
+  /players/{id}:
+    get:
+      operationId: getPlayer
+      tags: [players]
+      summary: Get player profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Player profile with stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerProfile"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePlayer
+      tags: [players]
+      summary: Update a player (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerUpdate"
+      responses:
+        "200":
+          description: Updated player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+    delete:
+      operationId: deletePlayer
+      tags: [players]
+      summary: Delete a player (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /players/{id}/ratings:
+    get:
+      operationId: getPlayerRatings
+      tags: [players]
+      summary: Get player ratings across all gamemodes
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Player ratings per gamemode
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerRating"
+
+  /player-match-history:
+    get:
+      operationId: listPlayerMatches
+      tags: [players]
+      summary: Get player match history by playerId query param
+      parameters:
+        - name: playerId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: gamemodeId
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchList"
+
+  # LEADERBOARD
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get leaderboard
+      parameters:
+        - name: gamemodeId
+          in: query
+          schema:
+            type: integer
+        - name: region
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [rating, wins, matches]
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardResult"
+
+  # MATCHES
+  /matches:
+    get:
+      operationId: listMatches
+      tags: [matches]
+      summary: List matches
+      parameters:
+        - name: gamemodeId
+          in: query
+          schema:
+            type: integer
+        - name: playerId
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchList"
+    post:
+      operationId: createMatch
+      tags: [matches]
+      summary: Create a match (admin/moderator)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchInput"
+      responses:
+        "201":
+          description: Created match with updated ratings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+
+  /matches/{id}:
+    get:
+      operationId: getMatch
+      tags: [matches]
+      summary: Get match details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+    patch:
+      operationId: updateMatch
+      tags: [matches]
+      summary: Update a match (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchUpdate"
+      responses:
+        "200":
+          description: Updated match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+    delete:
+      operationId: deleteMatch
+      tags: [matches]
+      summary: Delete a match (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # TESTS
+  /tests:
+    get:
+      operationId: listTests
+      tags: [tests]
+      summary: List tier test requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: gamemodeId
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Test request list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestList"
+    post:
+      operationId: createTest
+      tags: [tests]
+      summary: Create a tier test request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestInput"
+      responses:
+        "201":
+          description: Created test
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Test"
+
+  /tests/{id}:
+    get:
+      operationId: getTest
+      tags: [tests]
+      summary: Get test details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Test details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Test"
+    patch:
+      operationId: updateTest
+      tags: [tests]
+      summary: Update test status (tester/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestUpdate"
+      responses:
+        "200":
+          description: Updated test
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Test"
+
+  # ANNOUNCEMENTS
+  /announcements:
+    get:
+      operationId: listAnnouncements
+      tags: [announcements]
+      summary: List announcements
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Announcement list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementList"
+    post:
+      operationId: createAnnouncement
+      tags: [announcements]
+      summary: Create announcement (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+
+  /announcements/{id}:
+    get:
+      operationId: getAnnouncement
+      tags: [announcements]
+      summary: Get announcement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+    patch:
+      operationId: updateAnnouncement
+      tags: [announcements]
+      summary: Update announcement (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementUpdate"
+      responses:
+        "200":
+          description: Updated announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+    delete:
+      operationId: deleteAnnouncement
+      tags: [announcements]
+      summary: Delete announcement (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ADMIN
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Admin dashboard stats
+      responses:
+        "200":
+          description: Admin statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /admin/users:
+    get:
+      operationId: listUsers
+      tags: [admin]
+      summary: List all users (admin)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserList"
+
+  /admin/users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [admin]
+      summary: Update user (role, suspend) (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /admin/analytics:
+    get:
+      operationId: getAnalytics
+      tags: [admin]
+      summary: Analytics data for charts
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d]
+      responses:
+        "200":
+          description: Analytics data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsData"
+
+  /admin/players/{id}/reset-rating:
+    post:
+      operationId: resetPlayerRating
+      tags: [admin]
+      summary: Reset player rating (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetRatingInput"
+      responses:
+        "200":
+          description: Reset complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+
+  /admin/players/{id}/change-tier:
+    post:
+      operationId: changePlayerTier
+      tags: [admin]
+      summary: Change player tier (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeTierInput"
+      responses:
+        "200":
+          description: Tier changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    AuthUser:
+      type: object
+      required: [id, discordId, username, role]
+      properties:
+        id:
+          type: integer
+        discordId:
+          type: string
+        username:
+          type: string
+        displayName:
+          type: ["string", "null"]
+        avatar:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [owner, admin, moderator, tester, user]
+        isSuspended:
+          type: boolean
+        createdAt:
+          type: string
+
+    PlatformStats:
+      type: object
+      required: [totalPlayers, totalMatches, totalTests, onlinePlayers]
+      properties:
+        totalPlayers:
+          type: integer
+        totalMatches:
+          type: integer
+        totalTests:
+          type: integer
+        onlinePlayers:
+          type: integer
+
+    RecentActivity:
+      type: object
+      required: [recentMatches, recentPromotions]
+      properties:
+        recentMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+        recentPromotions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TierPromotion"
+
+    TierPromotion:
+      type: object
+      required: [id, playerId, playerName, gamemodeId, gamemodeName, fromTier, toTier, promotedAt]
+      properties:
+        id:
+          type: integer
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        gamemodeId:
+          type: integer
+        gamemodeName:
+          type: string
+        fromTier:
+          type: ["string", "null"]
+        toTier:
+          type: string
+        promotedAt:
+          type: string
+
+    Gamemode:
+      type: object
+      required: [id, name, slug, description, isActive]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    GamemodeInput:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+
+    GamemodeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+
+    Tier:
+      type: object
+      required: [id, name, slug, rank, minRating, maxRating, color]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        rank:
+          type: integer
+        minRating:
+          type: integer
+        maxRating:
+          type: ["integer", "null"]
+        color:
+          type: string
+        gamemodeId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    TierInput:
+      type: object
+      required: [name, slug, rank, minRating, color]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        rank:
+          type: integer
+        minRating:
+          type: integer
+        maxRating:
+          type: integer
+        color:
+          type: string
+        gamemodeId:
+          type: integer
+
+    TierUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        rank:
+          type: integer
+        minRating:
+          type: integer
+        maxRating:
+          type: integer
+        color:
+          type: string
+
+    Player:
+      type: object
+      required: [id, username, uuid, region, createdAt]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        uuid:
+          type: string
+        region:
+          type: string
+        country:
+          type: ["string", "null"]
+        userId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    PlayerProfile:
+      type: object
+      required: [id, username, uuid, region, createdAt, ratings]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        uuid:
+          type: string
+        region:
+          type: string
+        country:
+          type: ["string", "null"]
+        userId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        ratings:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerRating"
+        recentMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+
+    PlayerRating:
+      type: object
+      required: [id, playerId, gamemodeId, gamemodeName, rating, peakRating, wins, losses, totalMatches]
+      properties:
+        id:
+          type: integer
+        playerId:
+          type: integer
+        gamemodeId:
+          type: integer
+        gamemodeName:
+          type: string
+        gamemodeSlug:
+          type: string
+        rating:
+          type: integer
+        peakRating:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        totalMatches:
+          type: integer
+        tierId:
+          type: ["integer", "null"]
+        tierName:
+          type: ["string", "null"]
+        tierColor:
+          type: ["string", "null"]
+        tierSlug:
+          type: ["string", "null"]
+        season:
+          type: integer
+        updatedAt:
+          type: string
+
+    PlayerList:
+      type: object
+      required: [players, total, page, limit]
+      properties:
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/Player"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    PlayerInput:
+      type: object
+      required: [username, uuid, region]
+      properties:
+        username:
+          type: string
+        uuid:
+          type: string
+        region:
+          type: string
+        country:
+          type: string
+        userId:
+          type: integer
+
+    PlayerUpdate:
+      type: object
+      properties:
+        username:
+          type: string
+        uuid:
+          type: string
+        region:
+          type: string
+        country:
+          type: string
+        userId:
+          type: integer
+
+    LeaderboardEntry:
+      type: object
+      required: [rank, playerId, username, uuid, region, rating, peakRating, wins, losses, totalMatches]
+      properties:
+        rank:
+          type: integer
+        playerId:
+          type: integer
+        username:
+          type: string
+        uuid:
+          type: string
+        region:
+          type: string
+        rating:
+          type: integer
+        peakRating:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        totalMatches:
+          type: integer
+        tierId:
+          type: ["integer", "null"]
+        tierName:
+          type: ["string", "null"]
+        tierColor:
+          type: ["string", "null"]
+        tierSlug:
+          type: ["string", "null"]
+
+    LeaderboardResult:
+      type: object
+      required: [entries, total, page, limit]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardEntry"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    Match:
+      type: object
+      required: [id, gamemodeId, gamemodeName, player1Id, player1Name, player2Id, player2Name, winnerId, score, playedAt]
+      properties:
+        id:
+          type: integer
+        gamemodeId:
+          type: integer
+        gamemodeName:
+          type: string
+        player1Id:
+          type: integer
+        player1Name:
+          type: string
+        player2Id:
+          type: integer
+        player2Name:
+          type: string
+        winnerId:
+          type: integer
+        score:
+          type: string
+        ratingChange:
+          type: ["integer", "null"]
+        notes:
+          type: ["string", "null"]
+        playedAt:
+          type: string
+        createdAt:
+          type: string
+
+    MatchInput:
+      type: object
+      required: [gamemodeId, player1Id, player2Id, winnerId, score]
+      properties:
+        gamemodeId:
+          type: integer
+        player1Id:
+          type: integer
+        player2Id:
+          type: integer
+        winnerId:
+          type: integer
+        score:
+          type: string
+        notes:
+          type: string
+        playedAt:
+          type: string
+
+    MatchUpdate:
+      type: object
+      properties:
+        gamemodeId:
+          type: integer
+        player1Id:
+          type: integer
+        player2Id:
+          type: integer
+        winnerId:
+          type: integer
+        score:
+          type: string
+        notes:
+          type: string
+
+    MatchList:
+      type: object
+      required: [matches, total, page, limit]
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    Test:
+      type: object
+      required: [id, playerId, playerName, gamemodeId, gamemodeName, requestedTier, status, createdAt]
+      properties:
+        id:
+          type: integer
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        gamemodeId:
+          type: integer
+        gamemodeName:
+          type: string
+        requestedTier:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted, in_progress, approved, rejected, cancelled]
+        testerId:
+          type: ["integer", "null"]
+        testerName:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        result:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    TestInput:
+      type: object
+      required: [playerId, gamemodeId, requestedTier]
+      properties:
+        playerId:
+          type: integer
+        gamemodeId:
+          type: integer
+        requestedTier:
+          type: string
+        notes:
+          type: string
+
+    TestUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, accepted, in_progress, approved, rejected, cancelled]
+        testerId:
+          type: integer
+        notes:
+          type: string
+        result:
+          type: string
+
+    TestList:
+      type: object
+      required: [tests, total, page, limit]
+      properties:
+        tests:
+          type: array
+          items:
+            $ref: "#/components/schemas/Test"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    Announcement:
+      type: object
+      required: [id, title, content, type, authorId, authorName, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [news, update, event, maintenance]
+        isPinned:
+          type: boolean
+        authorId:
+          type: integer
+        authorName:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    AnnouncementInput:
+      type: object
+      required: [title, content, type, authorId]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [news, update, event, maintenance]
+        isPinned:
+          type: boolean
+        authorId:
+          type: integer
+
+    AnnouncementUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [news, update, event, maintenance]
+        isPinned:
+          type: boolean
+
+    AnnouncementList:
+      type: object
+      required: [announcements, total, page, limit]
+      properties:
+        announcements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Announcement"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    User:
+      type: object
+      required: [id, discordId, username, role, isSuspended, createdAt]
+      properties:
+        id:
+          type: integer
+        discordId:
+          type: string
+        username:
+          type: string
+        displayName:
+          type: ["string", "null"]
+        avatar:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [owner, admin, moderator, tester, user]
+        isSuspended:
+          type: boolean
+        playerId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    UserUpdate:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [owner, admin, moderator, tester, user]
+        isSuspended:
+          type: boolean
+        playerId:
+          type: integer
+
+    UserList:
+      type: object
+      required: [users, total, page, limit]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    AdminStats:
+      type: object
+      required: [totalUsers, totalPlayers, totalMatches, pendingTests, activeStaff]
+      properties:
+        totalUsers:
+          type: integer
+        totalPlayers:
+          type: integer
+        totalMatches:
+          type: integer
+        pendingTests:
+          type: integer
+        activeStaff:
+          type: integer
+
+    AnalyticsData:
+      type: object
+      required: [userGrowth, matchActivity, tierDistribution, gamemodePopularity]
+      properties:
+        userGrowth:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeriesPoint"
+        matchActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeriesPoint"
+        tierDistribution:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryPoint"
+        gamemodePopularity:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryPoint"
+
+    TimeSeriesPoint:
+      type: object
+      required: [date, value]
+      properties:
+        date:
+          type: string
+        value:
+          type: integer
+
+    CategoryPoint:
+      type: object
+      required: [label, value]
+      properties:
+        label:
+          type: string
+        value:
+          type: integer
+
+    ResetRatingInput:
+      type: object
+      required: [gamemodeId]
+      properties:
+        gamemodeId:
+          type: integer
+        newRating:
+          type: integer
+
+    ChangeTierInput:
+      type: object
+      required: [gamemodeId, tierId]
+      properties:
+        gamemodeId:
+          type: integer
+        tierId:
+          type: integer
