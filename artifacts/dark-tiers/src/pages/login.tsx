@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShieldAlert, AlertTriangle } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Login() {
@@ -31,7 +31,11 @@ export default function Login() {
           Sign in with Discord to track your rating, request tests, and view your match history.
         </p>
 
-        {discordConfigured === false ? (
+        {discordConfigured === null ? (
+          <div className="w-full flex items-center justify-center py-4">
+            <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+          </div>
+        ) : discordConfigured === false ? (
           <div className="w-full bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex flex-col items-center gap-3">
             <AlertTriangle className="w-6 h-6 text-yellow-400" />
             <div>

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 
-type ViewMode = "overall" | string; // string = gamemodeId
+type ViewMode = "overall" | string;
 
 const rankColors: Record<number, { bg: string; text: string; border: string }> = {
   1: { bg: "from-yellow-500 to-amber-400", text: "text-black", border: "border-yellow-400" },
@@ -145,15 +145,25 @@ function GamemodeCard({ entry }: { entry: LeaderboardEntry }) {
           </Link>
           <div className="flex items-center gap-1.5 mt-0.5">
             <RegionBadge region={entry.region} />
-            {entry.tierName && <TierBadge tierName={entry.tierName} tierColor={entry.tierColor} />}
           </div>
         </div>
-        <div className="text-right flex-shrink-0">
-          <div className={`font-black text-xl ${isTopThree ? rc.text : "text-primary"}`}>{entry.rating}</div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
-            <span className="text-green-400">{entry.wins}W</span>
+      </div>
+      <div className="px-4 py-3 border-t border-white/5 bg-black/20 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Tier</p>
+          {entry.tierName ? (
+            <TierBadge tierName={entry.tierName} tierColor={entry.tierColor} />
+          ) : (
+            <span className="text-xs text-muted-foreground">Unranked</span>
+          )}
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Rating</p>
+          <div className={`font-black text-2xl leading-none ${isTopThree ? rc.text : "text-primary"}`}>{entry.rating}</div>
+          <div className="text-[10px] text-muted-foreground mt-1">
+            <span className="text-green-400 font-semibold">{entry.wins}W</span>
             <span className="mx-0.5 opacity-40">-</span>
-            <span className="text-red-400">{entry.losses}L</span>
+            <span className="text-red-400 font-semibold">{entry.losses}L</span>
           </div>
         </div>
       </div>
@@ -186,6 +196,7 @@ export default function Leaderboard() {
   ];
 
   const isLoading = view === "overall" ? overallLoading : tableLoading;
+  const currentGamemodeName = gamemodes?.find(g => g.id.toString() === view)?.name;
 
   return (
     <div className="flex-1 flex flex-col items-center py-8">
@@ -200,7 +211,7 @@ export default function Leaderboard() {
             <p className="text-muted-foreground text-sm mt-1">
               {view === "overall"
                 ? "Overall rankings across all gamemodes."
-                : `Rankings for ${gamemodes?.find(g => g.id.toString() === view)?.name ?? "this gamemode"}.`}
+                : `Rankings for ${currentGamemodeName ?? "this gamemode"}.`}
             </p>
           </div>
 
