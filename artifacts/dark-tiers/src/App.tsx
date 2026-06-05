@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
-// Layout & Pages
 import { Navbar } from "@/components/layout/Navbar";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -28,70 +27,36 @@ const queryClient = new QueryClient({
   },
 });
 
-const pageVariants = {
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 },
-};
-const pageTransition = { duration: 0.28, ease: "easeOut" };
-
-function AnimatedPage({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={pageTransition}
-      className="flex-1 flex flex-col"
-    >
-      {children}
-    </motion.div>
-  );
-}
-
 function Router() {
   const [location] = useLocation();
+
   return (
     <div className="min-h-[100dvh] bg-background text-foreground flex flex-col font-sans">
       <Navbar />
       <main className="flex-1 flex flex-col">
         <AnimatePresence mode="wait">
-          <Switch key={location}>
-            <Route path="/">
-              <AnimatedPage><Home /></AnimatedPage>
-            </Route>
-            <Route path="/leaderboard">
-              <AnimatedPage><Leaderboard /></AnimatedPage>
-            </Route>
-            <Route path="/players">
-              <AnimatedPage><Players /></AnimatedPage>
-            </Route>
-            <Route path="/players/:id">
-              {(params) => <AnimatedPage><PlayerProfile /></AnimatedPage>}
-            </Route>
-            <Route path="/matches">
-              <AnimatedPage><Matches /></AnimatedPage>
-            </Route>
-            <Route path="/tests">
-              <AnimatedPage><Tests /></AnimatedPage>
-            </Route>
-            <Route path="/announcements">
-              <AnimatedPage><Announcements /></AnimatedPage>
-            </Route>
-            <Route path="/announcements/:id">
-              {(params) => <AnimatedPage><AnnouncementDetail /></AnimatedPage>}
-            </Route>
-            <Route path="/admin">
-              <AnimatedPage><Admin /></AnimatedPage>
-            </Route>
-            <Route path="/login">
-              <AnimatedPage><Login /></AnimatedPage>
-            </Route>
-            <Route>
-              <AnimatedPage><NotFound /></AnimatedPage>
-            </Route>
-          </Switch>
+          <motion.div
+            key={location}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="flex-1 flex flex-col"
+          >
+            <Switch>
+              <Route path="/" component={Home} />
+              <Route path="/leaderboard" component={Leaderboard} />
+              <Route path="/players" component={Players} />
+              <Route path="/players/:id" component={PlayerProfile} />
+              <Route path="/matches" component={Matches} />
+              <Route path="/tests" component={Tests} />
+              <Route path="/announcements" component={Announcements} />
+              <Route path="/announcements/:id" component={AnnouncementDetail} />
+              <Route path="/admin" component={Admin} />
+              <Route path="/login" component={Login} />
+              <Route component={NotFound} />
+            </Switch>
+          </motion.div>
         </AnimatePresence>
       </main>
     </div>

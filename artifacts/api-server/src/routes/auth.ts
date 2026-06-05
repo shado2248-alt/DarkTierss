@@ -45,6 +45,10 @@ router.post("/auth/logout", (req, res): void => {
   });
 });
 
+router.get("/auth/status", (_req, res): void => {
+  res.json({ discordConfigured: !!(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET) });
+});
+
 router.get("/auth/discord", (_req, res): void => {
   if (!DISCORD_CLIENT_ID) {
     res.status(503).json({ error: "Discord OAuth not configured" });
