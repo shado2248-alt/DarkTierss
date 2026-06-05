@@ -1,2 +1,3 @@
-- [Auth system](auth-system.md) — email+password auth replaced Discord OAuth; bcryptjs for hashing; auto-creates player on register
-- [DB schema migration](db-schema-migration.md) — drizzle-kit push requires TTY; use direct SQL via executeSql in code_execution instead
+- [Orval hook options typing](orval-hook-options.md) — generated hooks require `queryKey`; pass `as any` for partial `query` options; role/status string args need `as any` cast to match generated union types.
+- [Framer-motion ease types](framer-motion-ease.md) — string ease names like "easeOut" fail TS; use bezier array `[0.25, 0.1, 0.25, 1] as const` instead.
+- [DB migration in non-TTY](db-migration.md) — drizzle-kit push needs TTY; use `executeSql` in code_execution sandbox for schema changes in this env.

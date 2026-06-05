@@ -7,7 +7,7 @@ export default function AnnouncementDetail() {
   const [, params] = useRoute("/announcements/:id");
   const id = params?.id ? parseInt(params.id) : 0;
   
-  const { data: announcement, isLoading } = useGetAnnouncement(id, { query: { enabled: !!id } });
+  const { data: announcement, isLoading } = useGetAnnouncement(id, { query: { enabled: !!id } as any });
 
   if (isLoading) return <div className="flex-1 flex items-center justify-center">Loading...</div>;
   if (!announcement) return <div className="flex-1 flex items-center justify-center">Announcement not found</div>;

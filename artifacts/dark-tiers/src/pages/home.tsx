@@ -7,12 +7,14 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+const EASE = [0.25, 0.1, 0.25, 1] as const;
+
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   visible: (i = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.4, ease: "easeOut", delay: i * 0.1 },
+    transition: { duration: 0.4, ease: EASE, delay: i * 0.1 },
   }),
 };
 
@@ -23,14 +25,14 @@ const stagger = {
 
 const rowVariant = {
   hidden: { opacity: 0, x: -12 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeOut" } },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: EASE } },
 };
 
 export default function Home() {
   const { data: stats } = useGetStats();
   const { data: activity } = useGetRecentActivity();
-  const { data: announcements } = useListAnnouncements({ params: { limit: 3 } });
-  const { data: leaderboard } = useGetLeaderboard({ params: { limit: 5 } });
+  const { data: announcements } = useListAnnouncements({ limit: 3 });
+  const { data: leaderboard } = useGetLeaderboard({ limit: 5 });
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground">

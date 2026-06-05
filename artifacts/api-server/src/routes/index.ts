@@ -10,8 +10,13 @@ import matchesRouter from "./matches";
 import testsRouter from "./tests";
 import announcementsRouter from "./announcements";
 import adminRouter from "./admin";
+import { generalLimiter, authLimiter, adminLimiter } from "../middleware/rate-limit";
 
 const router: IRouter = Router();
+
+router.use(generalLimiter);
+router.use(/^\/auth\/(login|register)$/, authLimiter);
+router.use(/^\/admin/, adminLimiter);
 
 router.use(healthRouter);
 router.use(authRouter);

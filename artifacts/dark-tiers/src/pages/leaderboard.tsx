@@ -49,7 +49,7 @@ const listVariants = {
 };
 const cardVariants = {
   hidden: { opacity: 0, y: 22 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease: "easeOut" } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease: [0.25, 0.1, 0.25, 1] as const } },
 };
 
 type OverallPlayer = Awaited<ReturnType<typeof fetchOverall>>["players"][0];
@@ -187,7 +187,7 @@ export default function Leaderboard() {
   const gamemodeId = view !== "overall" ? parseInt(view) : undefined;
   const { data: tableData, isLoading: tableLoading } = useGetLeaderboard(
     { gamemodeId, search: search || undefined, sortBy, limit: 50 },
-    { query: { enabled: view !== "overall" } }
+    { query: { enabled: view !== "overall" } as any }
   );
 
   const tabs: Array<{ id: ViewMode; label: string }> = [
