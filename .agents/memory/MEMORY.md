@@ -1,0 +1,2 @@
+- [Auth system](auth-system.md) — email+password auth replaced Discord OAuth; bcryptjs for hashing; auto-creates player on register
+- [DB schema migration](db-schema-migration.md) — drizzle-kit push requires TTY; use direct SQL via executeSql in code_execution instead

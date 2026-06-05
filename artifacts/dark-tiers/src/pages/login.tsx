@@ -1,16 +1,87 @@
-import { useEffect, useState } from "react";
-import { ShieldAlert, AlertTriangle, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { useLocation } from "wouter";
+import { ShieldAlert, Eye, EyeOff, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
+import { getGetMeQueryKey } from "@workspace/api-client-react";
+
+type Tab = "login" | "register";
+
+async function apiPost(path: string, body: object) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Something went wrong");
+  return data;
+}
 
 export default function Login() {
-  const [discordConfigured, setDiscordConfigured] = useState<boolean | null>(null);
+  const [tab, setTab] = useState<Tab>("login");
+  const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetch("/api/auth/status")
-      .then(r => r.json())
-      .then(d => setDiscordConfigured(!!d.discordConfigured))
-      .catch(() => setDiscordConfigured(false));
-  }, []);
+  // Login state
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // Register state
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirm, setRegConfirm] = useState("");
+  const [regUsername, setRegUsername] = useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      await apiPost("/api/auth/login", { email: loginEmail, password: loginPassword });
+      await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      navigate("/");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (regPassword !== regConfirm) {
+      setError("Passwords do not match");
+      return;
+    }
+    if (regPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await apiPost("/api/auth/register", {
+        email: regEmail,
+        password: regPassword,
+        minecraftUsername: regUsername,
+      });
+      await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      setSuccess("Account created! Redirecting...");
+      setTimeout(() => navigate("/"), 1000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -20,46 +91,214 @@ export default function Login() {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="glass-card w-full max-w-md p-8 rounded-2xl flex flex-col items-center text-center relative z-10 border border-white/10"
+        className="glass-card w-full max-w-md rounded-2xl relative z-10 border border-white/10 overflow-hidden"
       >
-        <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(120,40,200,0.3)]">
-          <ShieldAlert className="w-8 h-8 text-primary" />
+        {/* Header */}
+        <div className="p-8 pb-0 text-center">
+          <div className="w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center mb-5 mx-auto shadow-[0_0_30px_rgba(120,40,200,0.3)]">
+            <ShieldAlert className="w-7 h-7 text-primary" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tight text-white">
+            {tab === "login" ? "Welcome Back" : "Create Account"}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1 mb-6">
+            {tab === "login"
+              ? "Sign in to your DARK TIERS account."
+              : "Join DARK TIERS and start climbing the ranks."}
+          </p>
+
+          {/* Tabs */}
+          <div className="flex rounded-lg bg-black/30 border border-white/10 p-1 mb-6">
+            {(["login", "register"] as Tab[]).map(t => (
+              <button
+                key={t}
+                onClick={() => { setTab(t); setError(null); setSuccess(null); }}
+                className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all duration-200 relative ${
+                  tab === t ? "text-white" : "text-muted-foreground hover:text-white"
+                }`}
+              >
+                {tab === t && (
+                  <motion.span
+                    layoutId="tab-pill"
+                    className="absolute inset-0 bg-primary/30 border border-primary/40 rounded-md"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10">{t === "login" ? "Sign In" : "Register"}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <h1 className="text-3xl font-black tracking-tight text-white mb-2">Welcome Back</h1>
-        <p className="text-muted-foreground mb-8">
-          Sign in with Discord to track your rating, request tests, and view your match history.
-        </p>
+        {/* Forms */}
+        <div className="px-8 pb-8">
+          <AnimatePresence mode="wait">
+            {tab === "login" ? (
+              <motion.form
+                key="login"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.18 }}
+                onSubmit={handleLogin}
+                className="flex flex-col gap-4"
+              >
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Email</label>
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={loginEmail}
+                    onChange={e => setLoginEmail(e.target.value)}
+                    className="bg-black/40 border-white/10 text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Password</label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Your password"
+                      value={loginPassword}
+                      onChange={e => setLoginPassword(e.target.value)}
+                      className="bg-black/40 border-white/10 text-white pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
 
-        {discordConfigured === null ? (
-          <div className="w-full flex items-center justify-center py-4">
-            <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-          </div>
-        ) : discordConfigured === false ? (
-          <div className="w-full bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex flex-col items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-yellow-400" />
-            <div>
-              <p className="text-yellow-300 font-bold text-sm">Discord OAuth not set up</p>
-              <p className="text-yellow-400/80 text-xs mt-1">
-                Add <code className="bg-black/40 px-1 rounded">DISCORD_CLIENT_ID</code> and{" "}
-                <code className="bg-black/40 px-1 rounded">DISCORD_CLIENT_SECRET</code> in the Secrets panel to enable login.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <a
-            href="/api/auth/discord"
-            className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-4 px-6 rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-3 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(88,101,242,0.4)]"
-          >
-            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z" />
-            </svg>
-            Login with Discord
-          </a>
-        )}
+                {error && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                    {error}
+                  </motion.p>
+                )}
 
-        <div className="mt-6 text-sm text-muted-foreground">
-          Don't have an account? Just login via Discord and we'll create one for you.
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-primary hover:bg-primary/90 text-white py-5 font-bold text-base shadow-[0_0_20px_rgba(120,40,200,0.3)] hover:shadow-[0_0_30px_rgba(120,40,200,0.5)] mt-1"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign In"}
+                </Button>
+
+                <p className="text-center text-xs text-muted-foreground">
+                  No account?{" "}
+                  <button type="button" onClick={() => setTab("register")} className="text-primary hover:text-primary/80 font-semibold">
+                    Register here
+                  </button>
+                </p>
+              </motion.form>
+            ) : (
+              <motion.form
+                key="register"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.18 }}
+                onSubmit={handleRegister}
+                className="flex flex-col gap-4"
+              >
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Minecraft Username</label>
+                  <div className="flex items-center gap-2">
+                    {regUsername && (
+                      <img
+                        src={`https://mc-heads.net/avatar/${encodeURIComponent(regUsername)}/32`}
+                        alt="preview"
+                        className="w-8 h-8 rounded bg-black border border-white/10 flex-shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    )}
+                    <Input
+                      type="text"
+                      placeholder="YourMCName"
+                      value={regUsername}
+                      onChange={e => setRegUsername(e.target.value)}
+                      className="bg-black/40 border-white/10 text-white flex-1"
+                      required
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">This will be your in-game name. Can be changed later.</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Email</label>
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={regEmail}
+                    onChange={e => setRegEmail(e.target.value)}
+                    className="bg-black/40 border-white/10 text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Password</label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Min 6 characters"
+                      value={regPassword}
+                      onChange={e => setRegPassword(e.target.value)}
+                      className="bg-black/40 border-white/10 text-white pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5 block">Confirm Password</label>
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Repeat password"
+                    value={regConfirm}
+                    onChange={e => setRegConfirm(e.target.value)}
+                    className="bg-black/40 border-white/10 text-white"
+                    required
+                  />
+                </div>
+
+                {error && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                    {error}
+                  </motion.p>
+                )}
+                {success && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-green-400 text-sm bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+                    {success}
+                  </motion.p>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-primary hover:bg-primary/90 text-white py-5 font-bold text-base shadow-[0_0_20px_rgba(120,40,200,0.3)] hover:shadow-[0_0_30px_rgba(120,40,200,0.5)] mt-1"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Account"}
+                </Button>
+
+                <p className="text-center text-xs text-muted-foreground">
+                  Already have an account?{" "}
+                  <button type="button" onClick={() => setTab("login")} className="text-primary hover:text-primary/80 font-semibold">
+                    Sign in
+                  </button>
+                </p>
+              </motion.form>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </div>

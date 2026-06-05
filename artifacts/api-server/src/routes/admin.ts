@@ -17,7 +17,7 @@ const router: IRouter = Router();
 function formatUser(u: typeof usersTable.$inferSelect) {
   return {
     id: u.id,
-    discordId: u.discordId,
+    email: u.email,
     username: u.username,
     displayName: u.displayName,
     avatar: u.avatar,
