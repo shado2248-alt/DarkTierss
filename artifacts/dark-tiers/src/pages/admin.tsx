@@ -32,22 +32,50 @@ function rolesFor(myRole: string): string[] {
   return [];
 }
 
-const ALL_TABS: { id: AdminTab; label: string; icon: React.ReactNode; minRole: string }[] = [
-  { id: "overview",      label: "Overview",   icon: <LayoutDashboard className="w-4 h-4" />, minRole: "admin" },
-  { id: "users",         label: "Users",      icon: <Users className="w-4 h-4" />,           minRole: "admin" },
-  { id: "players",       label: "Players",    icon: <ShieldCheck className="w-4 h-4" />,     minRole: "admin" },
-  { id: "ratings",       label: "Ratings",    icon: <RefreshCw className="w-4 h-4" />,       minRole: "admin" },
-  { id: "matches",       label: "Matches",    icon: <Swords className="w-4 h-4" />,          minRole: "tester" },
-  { id: "tests",         label: "Tests",      icon: <CheckCircle className="w-4 h-4" />,     minRole: "tester" },
-  { id: "announcements", label: "News",       icon: <Megaphone className="w-4 h-4" />,       minRole: "tester" },
-  { id: "gamemodes",     label: "Gamemodes",  icon: <Gamepad2 className="w-4 h-4" />,        minRole: "admin" },
-  { id: "tiers",         label: "Tiers",      icon: <Layers className="w-4 h-4" />,          minRole: "admin" },
-];
-
 const ROLE_RANK: Record<string, number> = { user: 0, tester: 1, moderator: 2, admin: 3, owner: 4 };
 function hasAccess(myRole: string, minRole: string) {
   return (ROLE_RANK[myRole] ?? 0) >= (ROLE_RANK[minRole] ?? 99);
 }
+
+type TabGroup = {
+  section: string;
+  minRole: string;
+  color: string;
+  tabs: { id: AdminTab; label: string; icon: React.ReactNode }[];
+};
+
+const TAB_GROUPS: TabGroup[] = [
+  {
+    section: "Staff Panel",
+    minRole: "tester",
+    color: "text-violet-400 border-violet-500/40",
+    tabs: [
+      { id: "matches",       label: "Matches", icon: <Swords className="w-4 h-4" /> },
+      { id: "tests",         label: "Tests",   icon: <CheckCircle className="w-4 h-4" /> },
+      { id: "announcements", label: "News",    icon: <Megaphone className="w-4 h-4" /> },
+    ],
+  },
+  {
+    section: "Admin Panel",
+    minRole: "admin",
+    color: "text-red-400 border-red-500/40",
+    tabs: [
+      { id: "overview",  label: "Overview",  icon: <LayoutDashboard className="w-4 h-4" /> },
+      { id: "players",   label: "Players",   icon: <ShieldCheck className="w-4 h-4" /> },
+      { id: "ratings",   label: "Ratings",   icon: <RefreshCw className="w-4 h-4" /> },
+      { id: "gamemodes", label: "Gamemodes", icon: <Gamepad2 className="w-4 h-4" /> },
+      { id: "tiers",     label: "Tiers",     icon: <Layers className="w-4 h-4" /> },
+    ],
+  },
+  {
+    section: "Owner Panel",
+    minRole: "owner",
+    color: "text-yellow-400 border-yellow-500/40",
+    tabs: [
+      { id: "users", label: "Users & Staff", icon: <Users className="w-4 h-4" /> },
+    ],
+  },
+];
 
 function StatCard({ label, value, color, sub }: { label: string; value: any; color?: string; sub?: string }) {
   return (
@@ -1023,8 +1051,9 @@ function TiersTab() {
 export default function Admin() {
   const { data: user, isLoading } = useGetMe();
   const myRole = (user as any)?.role ?? "user";
-  const tabList = ALL_TABS.filter(t => hasAccess(myRole, t.minRole));
-  const defaultTab = tabList[0]?.id ?? "matches";
+
+  const visibleGroups = TAB_GROUPS.filter(g => hasAccess(myRole, g.minRole));
+  const defaultTab = visibleGroups[0]?.tabs[0]?.id ?? "matches";
   const [tab, setTab] = useState<AdminTab>(defaultTab);
 
   if (isLoading) return (
@@ -1036,60 +1065,82 @@ export default function Admin() {
   if (!user) return <Redirect to="/login" />;
   if (!hasAccess(myRole, "tester")) return <Redirect to="/" />;
 
-  const panelTitle =
-    myRole === "owner" ? "Owner Panel" :
-    myRole === "admin" ? "Admin Panel" :
-    "Staff Panel";
-
-  const panelSub =
-    myRole === "owner" ? "Full platform control — manage staff, players, and all content." :
-    myRole === "admin" ? "Manage players, matches, tests, and promote testers." :
-    "Post match results, manage tier tests, and write announcements.";
-
   return (
     <div className="flex-1 flex flex-col items-center py-8">
       <div className="w-full max-w-7xl px-4 flex flex-col gap-5">
 
+        {/* Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-300 to-violet-500">
-              {panelTitle}
+              Control Panel
             </h1>
             <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border
-              ${myRole === "owner" ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/30"
-              : myRole === "admin" ? "text-red-400 bg-red-500/10 border-red-500/30"
+              ${myRole === "owner"    ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/30"
+              : myRole === "admin"   ? "text-red-400 bg-red-500/10 border-red-500/30"
+              : myRole === "moderator" ? "text-orange-400 bg-orange-500/10 border-orange-500/30"
               : "text-violet-400 bg-violet-500/10 border-violet-500/30"}`}>
               {myRole}
             </span>
+            {myRole === "owner" && (
+              <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border text-green-400 bg-green-500/10 border-green-500/30">
+                Full Access
+              </span>
+            )}
           </div>
-          <p className="text-muted-foreground text-sm mt-1">{panelSub}</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            {myRole === "owner"    ? "Full platform control across all 3 panels — staff, admin, and owner." :
+             myRole === "admin" || myRole === "moderator" ? "Manage players, matches, tests, and platform settings." :
+             "Post match results, manage tier tests, and write announcements."}
+          </p>
         </motion.div>
 
-        {/* Tab bar */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
-          {tabList.map(t => (
-            <motion.button key={t.id} onClick={() => setTab(t.id)} whileTap={{ scale: 0.94 }}
-              className={`relative flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold flex-shrink-0 transition-colors duration-200 ${tab === t.id ? "text-white" : "text-muted-foreground hover:text-white hover:bg-white/5"}`}>
-              {tab === t.id && (
-                <motion.span layoutId="admin-tab-pill" className="absolute inset-0 bg-primary/25 border border-primary/40 rounded-lg"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }} />
-              )}
-              <span className="relative z-10 flex items-center gap-1.5">{t.icon}{t.label}</span>
-            </motion.button>
+        {/* Grouped tab bar */}
+        <div className="flex flex-col gap-2">
+          {visibleGroups.map((group, gi) => (
+            <div key={group.section} className="flex flex-col gap-1">
+              <div className={`flex items-center gap-2 px-1`}>
+                <span className={`text-[9px] font-black uppercase tracking-[0.15em] ${group.color.split(" ")[0]} opacity-70`}>
+                  {group.section}
+                </span>
+                <div className={`flex-1 h-px border-t ${group.color.split(" ")[1]} opacity-30`} />
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                {group.tabs.map(t => (
+                  <motion.button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    whileTap={{ scale: 0.94 }}
+                    className={`relative flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold flex-shrink-0 transition-colors duration-200 ${
+                      tab === t.id ? "text-white" : "text-muted-foreground hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    {tab === t.id && (
+                      <motion.span
+                        layoutId="admin-tab-pill"
+                        className="absolute inset-0 bg-primary/25 border border-primary/40 rounded-lg"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">{t.icon}{t.label}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 
         {/* Content */}
         <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-          {tab === "overview" && <OverviewTab />}
-          {tab === "users" && <UsersTab myRole={myRole} />}
-          {tab === "players" && <PlayersTab />}
-          {tab === "ratings" && <RatingsTab />}
-          {tab === "matches" && <MatchesTab />}
-          {tab === "tests" && <TestsTab />}
+          {tab === "overview"      && <OverviewTab />}
+          {tab === "users"         && <UsersTab myRole={myRole} />}
+          {tab === "players"       && <PlayersTab />}
+          {tab === "ratings"       && <RatingsTab />}
+          {tab === "matches"       && <MatchesTab />}
+          {tab === "tests"         && <TestsTab />}
           {tab === "announcements" && <AnnouncementsTab userId={user.id} />}
-          {tab === "gamemodes" && <GamemodesTab />}
-          {tab === "tiers" && <TiersTab />}
+          {tab === "gamemodes"     && <GamemodesTab />}
+          {tab === "tiers"         && <TiersTab />}
         </motion.div>
 
       </div>
