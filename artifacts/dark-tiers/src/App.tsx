@@ -17,6 +17,7 @@ import Announcements from "@/pages/announcements";
 import AnnouncementDetail from "@/pages/announcement-detail";
 import Admin from "@/pages/admin";
 import Login from "@/pages/login";
+import Profile from "@/pages/profile";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +55,7 @@ function Router() {
               <Route path="/announcements/:id" component={AnnouncementDetail} />
               <Route path="/admin" component={Admin} />
               <Route path="/login" component={Login} />
+              <Route path="/profile" component={Profile} />
               <Route component={NotFound} />
             </Switch>
           </motion.div>

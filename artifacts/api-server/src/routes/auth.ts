@@ -174,6 +174,63 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   });
 });
 
+router.patch("/auth/me", async (req, res): Promise<void> => {
+  const session = req.session as any;
+  if (!session?.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const { displayName, region } = req.body ?? {};
+
+  const updates: Record<string, unknown> = {};
+  if (displayName !== undefined) {
+    if (typeof displayName !== "string" || displayName.trim().length < 1) {
+      res.status(400).json({ error: "Display name cannot be empty" });
+      return;
+    }
+    updates.displayName = displayName.trim();
+  }
+
+  try {
+    const [user] = await db
+      .update(usersTable)
+      .set(updates)
+      .where(eq(usersTable.id, session.userId))
+      .returning();
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    // Also update linked player region if provided
+    if (region && typeof region === "string") {
+      const validRegions = ["NA", "EU", "AS", "OC", "SA"];
+      if (validRegions.includes(region)) {
+        await db
+          .update(playersTable)
+          .set({ region })
+          .where(eq(playersTable.userId, session.userId));
+      }
+    }
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      displayName: user.displayName,
+      avatar: user.avatar,
+      role: user.role,
+      isSuspended: user.isSuspended,
+      createdAt: user.createdAt.toISOString(),
+    });
+  } catch (err) {
+    logger.error({ err }, "Profile update error");
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
 router.post("/auth/logout", (req, res): void => {
   const session = req.session as any;
   session.destroy(() => {
