@@ -125,7 +125,7 @@ export default function Home() {
     <div className="min-h-screen text-foreground overflow-x-hidden">
 
       {/* ══ HERO ════════════════════════════════════════════════ */}
-      <section className="relative min-h-[100dvh] flex items-center overflow-hidden">
+      <section className="relative overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0" style={{
@@ -136,13 +136,11 @@ export default function Home() {
             backgroundImage: `radial-gradient(1px 1px at center, rgba(255,255,255,0.032) 0%, transparent 0%)`,
             backgroundSize: "28px 28px"
           }} />
-          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
         </div>
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 py-20 md:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-
-          {/* ── Left column ── */}
-          <div className="flex flex-col gap-6">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 pt-16 pb-14 md:pt-20 md:pb-16">
+          <div className="flex flex-col gap-6 max-w-2xl">
             {/* Eyebrow */}
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
               className="flex items-center gap-3">
@@ -193,7 +191,7 @@ export default function Home() {
 
             {/* Stats row */}
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.38, ease: EASE }}
-              className="flex items-center gap-6 pt-2">
+              className="flex items-center gap-6 pt-1">
               <Counter value={stats?.totalPlayers ?? 0} label="Players Ranked" />
               <div className="w-px h-10 bg-white/10" />
               <Counter value={stats?.totalMatches ?? 0} label="Matches Played" />
@@ -201,69 +199,6 @@ export default function Home() {
               <Counter value={8} label="Game Modes" />
             </motion.div>
           </div>
-
-          {/* ── Right column: mini leaderboard ── */}
-          <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.2, ease: EASE }}
-            className="hidden lg:block w-full">
-            <div className="glass-card border border-white/12 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(120,40,200,0.18)]">
-              {/* Card header */}
-              <div className="px-5 py-3.5 border-b border-white/8 flex items-center justify-between bg-black/30">
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-black text-white">Top Ranked</span>
-                </div>
-                <Link href="/leaderboard" className="text-[11px] text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5">
-                  Full Board <ChevronRight className="w-3 h-3" />
-                </Link>
-              </div>
-
-              {/* Rows */}
-              <div className="divide-y divide-white/5">
-                {leaderboard?.entries?.length ? leaderboard.entries.map((entry, i) => (
-                  <motion.div key={entry.playerId}
-                    initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.35 + i * 0.07, ease: EASE }}
-                    className={`flex items-center gap-3 px-5 py-3.5 hover:bg-white/4 transition-colors
-                      ${i === 0 ? "bg-gradient-to-r from-yellow-500/8 to-transparent" : ""}`}>
-                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black
-                      ${i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]"
-                      : i === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-black"
-                      : i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-black"
-                      : "bg-white/8 text-white/60"}`}>
-                      {i + 1}
-                    </span>
-                    <img
-                      src={`https://mc-heads.net/body/${entry.uuid}/48`}
-                      alt={entry.username}
-                      className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-md"
-                      onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.uuid}/32`; }}
-                    />
-                    <Link href={`/players/${entry.playerId}`} className="flex-1 font-bold text-sm text-white hover:text-primary transition-colors truncate">
-                      {entry.username}
-                    </Link>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <TierBadge tierName={entry.tierName ?? null} tierColor={entry.tierColor ?? null} />
-                      <span className="text-primary font-black text-sm font-mono w-12 text-right">{entry.rating}</span>
-                    </div>
-                  </motion.div>
-                )) : (
-                  <div className="px-5 py-8 text-center text-muted-foreground text-sm">No ranked players yet.</div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="px-5 py-3 bg-black/20 border-t border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Users className="w-3 h-3" />
-                  {stats?.totalPlayers ?? 0} total players
-                </div>
-                <Link href="/players" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
-                  Browse All
-                </Link>
-              </div>
-            </div>
-          </motion.div>
-
         </div>
       </section>
 
@@ -364,28 +299,85 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto px-4"><div className="h-px bg-white/6" /></div>
 
-      {/* ══ DISCORD CTA ═════════════════════════════════════════ */}
+      {/* ══ DISCORD CTA + TOP RANKED ════════════════════════════ */}
       <section className="max-w-7xl mx-auto px-4 py-16">
         <Reveal>
-          <div className="glass-card border border-[#5865F2]/25 rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 bg-gradient-to-r from-[#5865F2]/8 to-transparent">
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-[#5865F2]/20 border border-[#5865F2]/30 flex items-center justify-center flex-shrink-0">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="#5865F2">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+            {/* Discord CTA card */}
+            <div className="glass-card border border-[#5865F2]/25 rounded-2xl p-8 flex flex-col gap-6 bg-gradient-to-br from-[#5865F2]/8 to-transparent h-full">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-[#5865F2]/20 border border-[#5865F2]/30 flex items-center justify-center flex-shrink-0">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="#5865F2">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.114 18.1.133 18.113a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-white">Join the Community on Discord</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Get notified of tier changes, find matches, and connect with players.</p>
+                </div>
+              </div>
+              <a href="https://discord.gg/mWHwDR8bg7" target="_blank" rel="noreferrer"
+                className="self-start inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(88,101,242,0.4)]">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.114 18.1.133 18.113a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
                 </svg>
+                Join Now
+              </a>
+            </div>
+
+            {/* Top Ranked card (desktop only — mobile has it below hero) */}
+            <div className="glass-card border border-white/12 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(120,40,200,0.18)] hidden lg:block">
+              <div className="px-5 py-3.5 border-b border-white/8 flex items-center justify-between bg-black/30">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-black text-white">Top Ranked</span>
+                </div>
+                <Link href="/leaderboard" className="text-[11px] text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5">
+                  Full Board <ChevronRight className="w-3 h-3" />
+                </Link>
               </div>
-              <div>
-                <h2 className="text-xl font-black text-white">Join the Community on Discord</h2>
-                <p className="text-sm text-muted-foreground mt-1">Get notified of tier changes, find matches, and connect with players.</p>
+              <div className="divide-y divide-white/5">
+                {leaderboard?.entries?.length ? leaderboard.entries.map((entry, i) => (
+                  <div key={entry.playerId}
+                    className={`flex items-center gap-3 px-5 py-3 hover:bg-white/4 transition-colors
+                      ${i === 0 ? "bg-gradient-to-r from-yellow-500/8 to-transparent" : ""}`}>
+                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black
+                      ${i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]"
+                      : i === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-black"
+                      : i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-black"
+                      : "bg-white/8 text-white/60"}`}>
+                      {i + 1}
+                    </span>
+                    <img
+                      src={`https://mc-heads.net/body/${entry.uuid}/48`}
+                      alt={entry.username}
+                      className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-md"
+                      onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.uuid}/32`; }}
+                    />
+                    <Link href={`/players/${entry.playerId}`} className="flex-1 font-bold text-sm text-white hover:text-primary transition-colors min-w-0 truncate">
+                      {entry.username}
+                    </Link>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <TierBadge tierName={entry.tierName ?? null} tierColor={entry.tierColor ?? null} />
+                      <span className="text-primary font-black text-sm font-mono w-12 text-right">{entry.rating}</span>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="px-5 py-8 text-center text-muted-foreground text-sm">No ranked players yet.</div>
+                )}
+              </div>
+              <div className="px-5 py-3 bg-black/20 border-t border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <Users className="w-3 h-3" />
+                  {stats?.totalPlayers ?? 0} total players
+                </div>
+                <Link href="/players" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
+                  Browse All
+                </Link>
               </div>
             </div>
-            <a href="https://discord.gg/mWHwDR8bg7" target="_blank" rel="noreferrer"
-              className="flex-shrink-0 inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(88,101,242,0.4)]">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.114 18.1.133 18.113a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
-              </svg>
-              Join Now
-            </a>
+
           </div>
         </Reveal>
       </section>
