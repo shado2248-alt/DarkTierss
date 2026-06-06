@@ -178,20 +178,20 @@ async function formatEntries(
 
 // Overall leaderboard: rank each player by their combined tier score across all gamemodes
 // Score = average tier rank (1=HT1 best, 10=LT5 worst). Lower score = higher overall rank.
+// All registered players are included; unranked players appear at the bottom.
 router.get("/leaderboard/overall", async (_req, res): Promise<void> => {
   // Get all gamemodes
   const gamemodes = await db.select().from(gamemodesTable).orderBy(gamemodesTable.id);
 
-  // Get all players who have at least one rating
+  // Get ALL players (including those with no ratings yet)
   const rows = await db.execute<{
     player_id: number;
     username: string;
     uuid: string;
     region: string;
   }>(
-    sql`SELECT DISTINCT p.id AS player_id, p.username, p.uuid, p.region
-        FROM player_ratings pr
-        INNER JOIN players p ON pr.player_id = p.id
+    sql`SELECT p.id AS player_id, p.username, p.uuid, p.region
+        FROM players p
         ORDER BY p.username`
   );
 
