@@ -39,11 +39,11 @@ export function Navbar() {
             <motion.img
               src="/dark-tiers-logo.png"
               alt="DARK TIERS"
-              className="w-9 h-9 object-contain"
-              whileHover={{ scale: 1.1, rotate: -5 }}
+              className="w-10 h-10 object-contain rounded-lg"
+              whileHover={{ scale: 1.08 }}
               transition={{ type: "spring", stiffness: 400, damping: 15 }}
             />
-            <span className="text-xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-300 to-violet-500 group-hover:from-purple-200 group-hover:via-violet-400 group-hover:to-purple-600 transition-all duration-300">
+            <span className="text-xl font-black tracking-tighter text-white group-hover:text-primary transition-colors duration-200">
               DARK TIERS
             </span>
           </Link>
