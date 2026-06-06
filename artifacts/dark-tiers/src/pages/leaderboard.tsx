@@ -1,64 +1,39 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useGetLeaderboard, useListGamemodes } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { TierBadge } from "@/components/ui/tier-badge";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion, AnimatePresence } from "framer-motion";
+import { Search, Filter } from "lucide-react";
+import { motion, AnimatePresence, useInView } from "framer-motion";
 
-type ViewMode = "overall" | string;
+const EASE = [0.25, 0.1, 0.25, 1] as const;
 
-const rankColors: Record<number, { bg: string; text: string; border: string }> = {
-  1: { bg: "from-yellow-500 to-amber-400", text: "text-black", border: "border-yellow-400" },
-  2: { bg: "from-slate-400 to-slate-300", text: "text-black", border: "border-slate-400" },
-  3: { bg: "from-orange-600 to-orange-400", text: "text-black", border: "border-orange-500" },
-};
-const defaultRank = { bg: "from-white/10 to-white/5", text: "text-white", border: "border-white/20" };
-
-async function fetchOverall() {
-  const res = await fetch("/api/leaderboard/overall");
-  if (!res.ok) throw new Error("Failed to fetch overall leaderboard");
-  return res.json() as Promise<{
-    players: Array<{
-      rank: number;
-      playerId: number;
-      username: string;
-      uuid: string;
-      region: string;
-      overallScore: number;
-      rankedGamemodes: number;
-      gamemodes: Array<{
-        gamemodeId: number;
-        gamemodeName: string;
-        gamemodeSlug: string;
-        tierName: string | null;
-        tierColor: string | null;
-        rating: number | null;
-      }>;
-    }>;
-    total: number;
+type OverallPlayer = {
+  rank: number;
+  playerId: number;
+  username: string;
+  uuid: string;
+  region: string | null;
+  overallScore: number;
+  rankedGamemodes: number;
+  gamemodes: Array<{
+    gamemodeId: number;
+    gamemodeName: string;
+    gamemodeSlug: string;
+    tierName: string | null;
+    tierColor: string | null;
+    rating: number | null;
   }>;
-}
-
-const listVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.055 } },
-};
-const cardVariants = {
-  hidden: { opacity: 0, y: 22 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease: [0.25, 0.1, 0.25, 1] as const } },
 };
 
-type OverallPlayer = Awaited<ReturnType<typeof fetchOverall>>["players"][0];
 type LeaderboardEntry = {
   rank: number;
   playerId: number;
   username: string;
   uuid: string;
-  region: string;
+  region: string | null;
   tierName: string | null;
   tierColor: string | null;
   rating: number;
@@ -67,130 +42,188 @@ type LeaderboardEntry = {
   totalMatches: number;
 };
 
+const REGION_CLS: Record<string, string> = {
+  NA: "bg-red-500/20 text-red-300 border-red-500/30",
+  EU: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  AS: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  OC: "bg-green-500/20 text-green-300 border-green-500/30",
+  SA: "bg-orange-500/20 text-orange-300 border-orange-500/30",
+};
+
 function RegionBadge({ region }: { region: string | null }) {
-  if (!region) return null;
-  const cls =
-    region === "NA"
-      ? "bg-red-500/20 text-red-300 border-red-500/30"
-      : region === "EU"
-      ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
-      : "bg-green-500/20 text-green-300 border-green-500/30";
+  if (!region) return <span className="text-muted-foreground/30">—</span>;
   return (
-    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${cls}`}>{region}</span>
+    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${REGION_CLS[region] ?? "bg-white/10 text-white border-white/20"}`}>
+      {region}
+    </span>
   );
 }
 
-function OverallCard({ player }: { player: OverallPlayer }) {
-  const rc = rankColors[player.rank] ?? defaultRank;
-  const rankedModes = player.gamemodes.filter(g => g.tierName);
-  const isTopThree = player.rank <= 3;
+function RankBadge({ rank }: { rank: number }) {
+  if (rank === 1) return <span className="inline-flex w-7 h-7 items-center justify-center rounded-lg text-xs font-black bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_12px_rgba(234,179,8,0.5)]">1</span>;
+  if (rank === 2) return <span className="inline-flex w-7 h-7 items-center justify-center rounded-lg text-xs font-black bg-gradient-to-br from-slate-300 to-slate-400 text-black shadow-[0_0_8px_rgba(148,163,184,0.3)]">2</span>;
+  if (rank === 3) return <span className="inline-flex w-7 h-7 items-center justify-center rounded-lg text-xs font-black bg-gradient-to-br from-orange-400 to-orange-600 text-black shadow-[0_0_8px_rgba(249,115,22,0.3)]">3</span>;
+  return <span className="inline-flex w-7 h-7 items-center justify-center rounded-lg text-xs font-bold text-muted-foreground bg-white/5">{rank}</span>;
+}
+
+/* ─── Row: Overall Table ─────────────────────────────────── */
+function OverallRow({ player, gamemodes, index }: {
+  player: OverallPlayer;
+  gamemodes: Array<{ id: number; name: string }>;
+  index: number;
+}) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "0px 0px -20px 0px" });
+  const isTop3 = player.rank <= 3;
 
   return (
-    <motion.div variants={cardVariants} className="glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-primary/40 transition-colors duration-300">
-      <div className={`flex items-center gap-3 px-4 py-3.5 ${isTopThree ? `bg-gradient-to-r ${rc.bg}` : "bg-white/5"}`}>
-        <div className={`flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg bg-gradient-to-br ${rc.bg} ${rc.text} border ${rc.border} shadow-md`}>
-          {player.rank}
-        </div>
-        <img
-          src={`https://mc-heads.net/body/${player.uuid}/60`}
-          alt={player.username}
-          className="h-14 w-auto object-contain flex-shrink-0 drop-shadow-md"
-          onError={(e) => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${player.uuid}/48`; }}
-        />
-        <div className="flex-1 min-w-0">
-          <Link href={`/players/${player.playerId}`} className={`font-black text-lg leading-tight truncate block hover:text-primary transition-colors ${isTopThree ? rc.text : "text-white"}`}>
-            {player.username}
-          </Link>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <RegionBadge region={player.region} />
-            <span className="text-[10px] text-muted-foreground">{player.rankedGamemodes} modes</span>
+    <motion.tr
+      ref={ref}
+      initial={{ opacity: 0, x: -8 }}
+      animate={inView ? { opacity: 1, x: 0 } : {}}
+      transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.3), ease: EASE }}
+      className={`border-b border-white/5 transition-colors hover:bg-white/4 group
+        ${isTop3 ? "bg-primary/4" : ""}`}
+    >
+      {/* Rank */}
+      <td className="py-3 pl-4 pr-3 w-12">
+        <RankBadge rank={player.rank} />
+      </td>
+
+      {/* Player */}
+      <td className="py-3 pr-4">
+        <div className="flex items-center gap-3">
+          <img
+            src={`https://mc-heads.net/avatar/${player.uuid}/32`}
+            alt={player.username}
+            className="w-8 h-8 rounded-lg bg-black flex-shrink-0"
+            onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/steve/32`; }}
+          />
+          <div className="min-w-0">
+            <Link
+              href={`/players/${player.playerId}`}
+              className={`font-bold text-sm leading-tight block truncate hover:text-primary transition-colors
+                ${isTop3 ? "text-white" : "text-white/90"}`}
+            >
+              {player.username}
+            </Link>
+            <div className="text-[10px] text-muted-foreground">{player.rankedGamemodes} mode{player.rankedGamemodes !== 1 ? "s" : ""}</div>
           </div>
         </div>
-      </div>
-      {rankedModes.length > 0 && (
-        <div className="px-4 py-3 border-t border-white/5 bg-black/20">
-          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Tiers</p>
-          <div className="flex flex-wrap gap-x-3 gap-y-2">
-            {rankedModes.map(gm => (
-              <div key={gm.gamemodeId} className="flex flex-col items-center gap-0.5">
-                <TierBadge tierName={gm.tierName} tierColor={gm.tierColor} />
-                <span className="text-[9px] text-muted-foreground leading-none">{gm.gamemodeName}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </motion.div>
+      </td>
+
+      {/* Region */}
+      <td className="py-3 pr-4">
+        <RegionBadge region={player.region} />
+      </td>
+
+      {/* One column per gamemode */}
+      {gamemodes.map(gm => {
+        const entry = player.gamemodes.find(g => g.gamemodeId === gm.id);
+        return (
+          <td key={gm.id} className="py-3 pr-4 text-center">
+            {entry?.tierName
+              ? <TierBadge tierName={entry.tierName} tierColor={entry.tierColor} />
+              : <span className="text-muted-foreground/25 text-xs">—</span>
+            }
+          </td>
+        );
+      })}
+
+      {/* Best ELO */}
+      <td className="py-3 pr-4 text-right">
+        <span className={`font-black text-sm font-mono ${isTop3 ? "text-primary" : "text-white/70"}`}>
+          {player.overallScore}
+        </span>
+      </td>
+    </motion.tr>
   );
 }
 
-function GamemodeCard({ entry }: { entry: LeaderboardEntry }) {
-  const rc = rankColors[entry.rank] ?? defaultRank;
-  const isTopThree = entry.rank <= 3;
+/* ─── Row: Per-Gamemode Table ────────────────────────────── */
+function GamemodeRow({ entry, index }: { entry: LeaderboardEntry; index: number }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "0px 0px -20px 0px" });
+  const isTop3 = entry.rank <= 3;
+  const winPct = entry.totalMatches > 0 ? ((entry.wins / entry.totalMatches) * 100).toFixed(0) : "0";
+
   return (
-    <motion.div variants={cardVariants} className="glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-primary/40 transition-colors duration-300">
-      <div className={`flex items-center gap-3 px-4 py-3.5 ${isTopThree ? `bg-gradient-to-r ${rc.bg}` : "bg-white/5"}`}>
-        <div className={`flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg bg-gradient-to-br ${rc.bg} ${rc.text} border ${rc.border} shadow-md`}>
-          {entry.rank}
-        </div>
-        <img
-          src={`https://mc-heads.net/body/${entry.uuid}/60`}
-          alt={entry.username}
-          className="h-14 w-auto object-contain flex-shrink-0 drop-shadow-md"
-          onError={(e) => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.uuid}/48`; }}
-        />
-        <div className="flex-1 min-w-0">
-          <Link href={`/players/${entry.playerId}`} className={`font-black text-lg leading-tight truncate block hover:text-primary transition-colors ${isTopThree ? rc.text : "text-white"}`}>
+    <motion.tr
+      ref={ref}
+      initial={{ opacity: 0, x: -8 }}
+      animate={inView ? { opacity: 1, x: 0 } : {}}
+      transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.3), ease: EASE }}
+      className={`border-b border-white/5 transition-colors hover:bg-white/4 group ${isTop3 ? "bg-primary/4" : ""}`}
+    >
+      <td className="py-3 pl-4 pr-3 w-12"><RankBadge rank={entry.rank} /></td>
+      <td className="py-3 pr-4">
+        <div className="flex items-center gap-3">
+          <img
+            src={`https://mc-heads.net/avatar/${entry.uuid}/32`}
+            alt={entry.username}
+            className="w-8 h-8 rounded-lg bg-black flex-shrink-0"
+            onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/steve/32`; }}
+          />
+          <Link href={`/players/${entry.playerId}`} className="font-bold text-sm text-white/90 hover:text-primary transition-colors truncate">
             {entry.username}
           </Link>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <RegionBadge region={entry.region} />
-          </div>
         </div>
-      </div>
-      <div className="px-4 py-3 border-t border-white/5 bg-black/20 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Tier</p>
-          {entry.tierName ? (
-            <TierBadge tierName={entry.tierName} tierColor={entry.tierColor} />
-          ) : (
-            <span className="text-xs text-muted-foreground">Unranked</span>
-          )}
-        </div>
-        <div className="text-right">
-          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Rating</p>
-          <div className={`font-black text-2xl leading-none ${isTopThree ? rc.text : "text-primary"}`}>{entry.rating}</div>
-          <div className="text-[10px] text-muted-foreground mt-1">
-            <span className="text-green-400 font-semibold">{entry.wins}W</span>
-            <span className="mx-0.5 opacity-40">-</span>
-            <span className="text-red-400 font-semibold">{entry.losses}L</span>
-          </div>
-        </div>
-      </div>
-    </motion.div>
+      </td>
+      <td className="py-3 pr-4"><RegionBadge region={entry.region} /></td>
+      <td className="py-3 pr-4">
+        {entry.tierName
+          ? <TierBadge tierName={entry.tierName} tierColor={entry.tierColor} />
+          : <span className="text-muted-foreground/40 text-xs">Unranked</span>}
+      </td>
+      <td className="py-3 pr-4 text-right">
+        <span className={`font-black text-sm font-mono ${isTop3 ? "text-primary" : "text-white/80"}`}>{entry.rating}</span>
+      </td>
+      <td className="py-3 pr-4 text-center">
+        <span className="text-xs font-semibold text-green-400">{entry.wins}</span>
+      </td>
+      <td className="py-3 pr-4 text-center">
+        <span className="text-xs font-semibold text-red-400">{entry.losses}</span>
+      </td>
+      <td className="py-3 pr-5 text-right">
+        <span className="text-xs font-bold text-muted-foreground">{winPct}%</span>
+      </td>
+    </motion.tr>
   );
 }
 
+/* ─── Table Shell ────────────────────────────────────────── */
+function TableHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <th className="py-2.5 pr-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-left whitespace-nowrap select-none">
+      {children}
+    </th>
+  );
+}
+
+/* ─── Main Component ─────────────────────────────────────── */
 export default function Leaderboard() {
-  const [view, setView] = useState<ViewMode>("overall");
+  const [view, setView] = useState<string>("overall");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"rating" | "wins" | "matches">("rating");
 
   const { data: gamemodes } = useListGamemodes();
 
   const { data: overallData, isLoading: overallLoading } = useQuery({
     queryKey: ["leaderboard-overall"],
-    queryFn: fetchOverall,
+    queryFn: async () => {
+      const res = await fetch("/api/leaderboard/overall");
+      if (!res.ok) throw new Error("Failed");
+      return res.json() as Promise<{ players: OverallPlayer[]; total: number }>;
+    },
     enabled: view === "overall",
   });
 
   const gamemodeId = view !== "overall" ? parseInt(view) : undefined;
   const { data: tableData, isLoading: tableLoading } = useGetLeaderboard(
-    { gamemodeId, search: search || undefined, sortBy, limit: 50 },
+    { gamemodeId, search: search || undefined, sortBy: "rating", limit: 100 },
     { query: { enabled: view !== "overall" } as any }
   );
 
-  const tabs: Array<{ id: ViewMode; label: string }> = [
+  const tabs = [
     { id: "overall", label: "Overall" },
     ...(gamemodes?.map(g => ({ id: g.id.toString(), label: g.name })) ?? []),
   ];
@@ -198,117 +231,148 @@ export default function Leaderboard() {
   const isLoading = view === "overall" ? overallLoading : tableLoading;
   const currentGamemodeName = gamemodes?.find(g => g.id.toString() === view)?.name;
 
+  const filteredOverall = (overallData?.players ?? []).filter(p =>
+    !search || p.username.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="flex-1 flex flex-col items-center py-8">
-      <div className="w-full max-w-7xl px-4 flex flex-col gap-6">
+      <div className="w-full max-w-screen-xl px-4 flex flex-col gap-5">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4"
+        >
           <div>
             <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-300 to-violet-500">
               Leaderboard
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
               {view === "overall"
-                ? "Overall rankings across all gamemodes."
-                : `Rankings for ${currentGamemodeName ?? "this gamemode"}.`}
+                ? `${overallData?.total ?? 0} ranked players across all gamemodes`
+                : `${tableData?.total ?? 0} players in ${currentGamemodeName ?? "this mode"}`}
             </p>
           </div>
+          <div className="relative w-full sm:w-56 flex-shrink-0">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search player..."
+              className="pl-9 bg-black/40 border-white/10 text-white h-9"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+        </motion.div>
 
-          {view !== "overall" && (
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="relative w-full md:w-56">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search players..."
-                  className="pl-9 bg-black/40 border-white/10 text-white"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                <SelectTrigger className="w-32 bg-black/40 border-white/10 text-white">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rating">Rating</SelectItem>
-                  <SelectItem value="wins">Wins</SelectItem>
-                  <SelectItem value="matches">Matches</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+        {/* Tab bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.06 }}
+          className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none"
+        >
           {tabs.map(tab => (
-            <motion.button
+            <button
               key={tab.id}
-              onClick={() => setView(tab.id)}
-              whileTap={{ scale: 0.94 }}
-              className={`relative px-4 py-2 rounded-lg text-sm font-semibold flex-shrink-0 transition-colors duration-200 ${
-                view === tab.id ? "text-white" : "text-muted-foreground hover:text-white hover:bg-white/5"
-              }`}
+              onClick={() => { setView(tab.id); setSearch(""); }}
+              className={`relative px-4 py-2 rounded-lg text-xs font-bold flex-shrink-0 transition-colors duration-200
+                ${view === tab.id ? "text-white" : "text-muted-foreground hover:text-white hover:bg-white/5"}`}
             >
               {view === tab.id && (
                 <motion.span
-                  layoutId="lb-tab-pill"
-                  className="absolute inset-0 bg-primary/25 border border-primary/40 rounded-lg"
+                  layoutId="lb-tab"
+                  className="absolute inset-0 bg-primary/22 border border-primary/40 rounded-lg"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
               <span className="relative z-10">{tab.label}</span>
-            </motion.button>
+            </button>
           ))}
-        </div>
+        </motion.div>
 
-        {/* Content */}
+        {/* Table */}
         <AnimatePresence mode="wait">
           <motion.div
             key={view}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
           >
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <Skeleton key={i} className="h-36 bg-white/5 rounded-2xl" />
+              <div className="space-y-2">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 bg-white/5 rounded-xl" />
                 ))}
               </div>
-            ) : view === "overall" ? (
-              overallData?.players && overallData.players.length > 0 ? (
-                <motion.div
-                  variants={listVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                >
-                  {overallData.players.map(player => (
-                    <OverallCard key={player.playerId} player={player} />
-                  ))}
-                </motion.div>
-              ) : (
-                <div className="glass-card rounded-xl py-20 text-center text-muted-foreground">
-                  No ranked players yet. Create some matches to populate the leaderboard.
-                </div>
-              )
-            ) : tableData?.entries && tableData.entries.length > 0 ? (
-              <motion.div
-                variants={listVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 gap-4"
-              >
-                {tableData.entries.map(entry => (
-                  <GamemodeCard key={`${entry.playerId}`} entry={entry as unknown as LeaderboardEntry} />
-                ))}
-              </motion.div>
             ) : (
-              <div className="glass-card rounded-xl py-20 text-center text-muted-foreground">
-                No players ranked in this gamemode yet.
+              <div className="glass-card border border-white/10 rounded-2xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  {view === "overall" ? (
+                    filteredOverall.length > 0 ? (
+                      <table className="w-full min-w-max">
+                        <thead className="border-b border-white/8 bg-black/30">
+                          <tr>
+                            <th className="py-2.5 pl-4 pr-3 w-12 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-left">#</th>
+                            <TableHeader>Player</TableHeader>
+                            <TableHeader>Region</TableHeader>
+                            {(gamemodes ?? []).map(gm => (
+                              <th key={gm.id} className="py-2.5 pr-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-center whitespace-nowrap">
+                                {gm.name}
+                              </th>
+                            ))}
+                            <th className="py-2.5 pr-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-right whitespace-nowrap">
+                              Best ELO
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredOverall.map((player, i) => (
+                            <OverallRow
+                              key={player.playerId}
+                              player={player}
+                              gamemodes={gamemodes ?? []}
+                              index={i}
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="py-20 text-center text-muted-foreground">
+                        {search ? `No players matching "${search}".` : "No ranked players yet."}
+                      </div>
+                    )
+                  ) : (
+                    tableData?.entries && tableData.entries.length > 0 ? (
+                      <table className="w-full min-w-max">
+                        <thead className="border-b border-white/8 bg-black/30">
+                          <tr>
+                            <th className="py-2.5 pl-4 pr-3 w-12 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-left">#</th>
+                            <TableHeader>Player</TableHeader>
+                            <TableHeader>Region</TableHeader>
+                            <TableHeader>Tier</TableHeader>
+                            <th className="py-2.5 pr-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-right">ELO</th>
+                            <th className="py-2.5 pr-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-center">W</th>
+                            <th className="py-2.5 pr-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-center">L</th>
+                            <th className="py-2.5 pr-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-right">Win%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(tableData.entries as unknown as LeaderboardEntry[]).map((entry, i) => (
+                            <GamemodeRow key={entry.playerId} entry={entry} index={i} />
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="py-20 text-center text-muted-foreground">
+                        {search ? `No players matching "${search}".` : `No players ranked in ${currentGamemodeName ?? "this mode"} yet.`}
+                      </div>
+                    )
+                  )}
+                </div>
               </div>
             )}
           </motion.div>
