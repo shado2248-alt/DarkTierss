@@ -41,6 +41,7 @@ export * from './match';
 export * from './matchInput';
 export * from './matchList';
 export * from './matchUpdate';
+export * from './platformSettings';
 export * from './platformStats';
 export * from './player';
 export * from './playerInput';

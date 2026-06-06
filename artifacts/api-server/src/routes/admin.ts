@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, playersTable, matchesTable, testsTable, playerRatingsTable, tiersTable, tierPromotionsTable, announcementsTable } from "@workspace/db";
+import { db, usersTable, playersTable, matchesTable, testsTable, playerRatingsTable, tiersTable, tierPromotionsTable, announcementsTable, settingsTable } from "@workspace/db";
 import { eq, ilike, desc, sql, and } from "drizzle-orm";
 import {
   ListUsersQueryParams,
@@ -144,6 +144,23 @@ router.get("/admin/analytics", async (req, res): Promise<void> => {
     gamemodePopularity: (gamemodePopRaw.rows as any[]).map(r => ({ label: String(r.label), value: Number(r.value) })),
     regionalDistribution: (regionalRaw.rows as any[]).map(r => ({ label: String(r.label), value: Number(r.value) })),
   });
+});
+
+// ── SETTINGS ────────────────────────────────────────────────────────────────────
+router.patch("/admin/settings", async (req, res): Promise<void> => {
+  const { serverIp, discordUrl } = req.body ?? {};
+  if (serverIp !== undefined) {
+    await db.insert(settingsTable).values({ key: "serverIp", value: String(serverIp) })
+      .onConflictDoUpdate({ target: settingsTable.key, set: { value: String(serverIp), updatedAt: new Date() } });
+  }
+  if (discordUrl !== undefined) {
+    await db.insert(settingsTable).values({ key: "discordUrl", value: String(discordUrl) })
+      .onConflictDoUpdate({ target: settingsTable.key, set: { value: String(discordUrl), updatedAt: new Date() } });
+  }
+  const rows = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.key] = r.value;
+  res.json({ serverIp: map.serverIp ?? "", discordUrl: map.discordUrl ?? "" });
 });
 
 // ── PROMOTIONS ──────────────────────────────────────────────────────────────────

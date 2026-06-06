@@ -8,3 +8,4 @@ export * from "./tests";
 export * from "./announcements";
 export * from "./tier-promotions";
 export * from "./sessions";
+export * from "./settings";

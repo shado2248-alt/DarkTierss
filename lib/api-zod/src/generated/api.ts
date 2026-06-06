@@ -730,6 +730,29 @@ export const DeleteAnnouncementParams = zod.object({
 
 
 /**
+ * @summary Get public platform settings (server IP, Discord link)
+ */
+export const GetSettingsResponse = zod.object({
+  "serverIp": zod.string().optional(),
+  "discordUrl": zod.string().optional()
+})
+
+
+/**
+ * @summary Update platform settings (owner only)
+ */
+export const UpdateSettingsBody = zod.object({
+  "serverIp": zod.string().optional(),
+  "discordUrl": zod.string().optional()
+})
+
+export const UpdateSettingsResponse = zod.object({
+  "serverIp": zod.string().optional(),
+  "discordUrl": zod.string().optional()
+})
+
+
+/**
  * @summary Admin dashboard stats
  */
 export const GetAdminStatsResponse = zod.object({

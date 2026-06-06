@@ -439,6 +439,11 @@ export interface UserList {
   limit: number;
 }
 
+export interface PlatformSettings {
+  serverIp?: string;
+  discordUrl?: string;
+}
+
 export interface AdminStats {
   totalUsers: number;
   totalPlayers: number;

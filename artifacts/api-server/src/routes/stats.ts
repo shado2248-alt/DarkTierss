@@ -1,9 +1,16 @@
 import { Router, type IRouter } from "express";
-import { db, playersTable, matchesTable, testsTable, tierPromotionsTable, gamemodesTable, tiersTable } from "@workspace/db";
+import { db, playersTable, matchesTable, testsTable, tierPromotionsTable, gamemodesTable, tiersTable, settingsTable } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+router.get("/settings", async (_req, res): Promise<void> => {
+  const rows = await db.select().from(settingsTable);
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.key] = r.value;
+  res.json({ serverIp: map.serverIp ?? "", discordUrl: map.discordUrl ?? "" });
+});
 
 router.get("/stats", async (_req, res): Promise<void> => {
   const [{ totalPlayers }] = await db

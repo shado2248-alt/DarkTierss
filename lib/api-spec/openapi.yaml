@@ -742,6 +742,38 @@ paths:
           description: Deleted
 
   # ADMIN
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get public platform settings (server IP, Discord link)
+      responses:
+        "200":
+          description: Platform settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformSettings"
+
+  /admin/settings:
+    patch:
+      operationId: updateSettings
+      tags: [admin]
+      summary: Update platform settings (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformSettings"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformSettings"
+
   /admin/stats:
     get:
       operationId: getAdminStats
@@ -1544,6 +1576,14 @@ components:
           type: integer
         limit:
           type: integer
+
+    PlatformSettings:
+      type: object
+      properties:
+        serverIp:
+          type: string
+        discordUrl:
+          type: string
 
     AdminStats:
       type: object

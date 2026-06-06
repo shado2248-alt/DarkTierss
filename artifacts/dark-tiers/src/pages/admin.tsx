@@ -8,7 +8,7 @@ import {
   useListAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement,
   useListGamemodes, useCreateGamemode, useUpdateGamemode, useDeleteGamemode,
   useListTiers, useCreateTier, useUpdateTier, useDeleteTier,
-  useSetTierByUsername, useListPromotions,
+  useSetTierByUsername, useListPromotions, useGetSettings, useUpdateSettings,
 } from "@workspace/api-client-react";
 import { Redirect } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type AdminTab =
   | "overview" | "user-role" | "tier-result"
-  | "users" | "players" | "ratings" | "gamemodes" | "tiers" | "promotions"
+  | "users" | "players" | "ratings" | "gamemodes" | "tiers" | "promotions" | "settings"
   | "matches" | "tests" | "announcements";
 
 const COLORS = ["#8b5cf6", "#6366f1", "#f97316", "#22c55e", "#ec4899", "#14b8a6", "#f43f5e", "#a855f7", "#06b6d4", "#84cc16"];
@@ -49,10 +49,9 @@ const TAB_GROUPS: TabGroup[] = [
     minRole: "tester",
     color: "text-violet-400 border-violet-500/40",
     tabs: [
-      { id: "tier-result",   label: "Tier Result", icon: <ShieldCheck className="w-4 h-4" /> },
-      { id: "matches",       label: "Matches",     icon: <Swords className="w-4 h-4" /> },
-      { id: "tests",         label: "Tests",       icon: <CheckCircle className="w-4 h-4" /> },
-      { id: "announcements", label: "News",        icon: <Megaphone className="w-4 h-4" /> },
+      { id: "tier-result", label: "Tier Result", icon: <ShieldCheck className="w-4 h-4" /> },
+      { id: "matches",     label: "Matches",     icon: <Swords className="w-4 h-4" /> },
+      { id: "tests",       label: "Tests",       icon: <CheckCircle className="w-4 h-4" /> },
     ],
   },
   {
@@ -60,8 +59,9 @@ const TAB_GROUPS: TabGroup[] = [
     minRole: "admin",
     color: "text-red-400 border-red-500/40",
     tabs: [
-      { id: "overview",  label: "Overview",  icon: <LayoutDashboard className="w-4 h-4" /> },
-      { id: "user-role", label: "User Role", icon: <UserCog className="w-4 h-4" /> },
+      { id: "overview",      label: "Overview",      icon: <LayoutDashboard className="w-4 h-4" /> },
+      { id: "user-role",     label: "User Role",     icon: <UserCog className="w-4 h-4" /> },
+      { id: "announcements", label: "News",          icon: <Megaphone className="w-4 h-4" /> },
     ],
   },
   {
@@ -75,6 +75,7 @@ const TAB_GROUPS: TabGroup[] = [
       { id: "gamemodes",  label: "Gamemodes",     icon: <Gamepad2 className="w-4 h-4" /> },
       { id: "tiers",      label: "Tiers",         icon: <Layers className="w-4 h-4" /> },
       { id: "promotions", label: "Promotions",    icon: <TrendingUp className="w-4 h-4" /> },
+      { id: "settings",   label: "Settings",      icon: <Globe className="w-4 h-4" /> },
     ],
   },
 ];
@@ -1238,6 +1239,94 @@ function AnnouncementsTab({ userId }: { userId: number }) {
   );
 }
 
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+function SettingsTab() {
+  const { data, refetch } = useGetSettings();
+  const updateSettings = useUpdateSettings();
+  const settings = data as any;
+
+  const [form, setForm] = useState({ serverIp: "", discordUrl: "" });
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (settings) {
+      setForm({ serverIp: settings.serverIp ?? "", discordUrl: settings.discordUrl ?? "" });
+    }
+  }, [settings?.serverIp, settings?.discordUrl]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true); setSaved(false);
+    try {
+      await updateSettings.mutateAsync({ data: { serverIp: form.serverIp, discordUrl: form.discordUrl } });
+      refetch(); setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="flex flex-col gap-6 max-w-xl">
+      <div>
+        <h2 className="text-lg font-black text-white">Platform Settings</h2>
+        <p className="text-xs text-muted-foreground mt-1">Controls the server IP and Discord link shown on the homepage and leaderboard.</p>
+      </div>
+
+      <form onSubmit={handleSave} className="glass-card rounded-2xl border border-white/10 p-6 flex flex-col gap-5">
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Server IP</label>
+          <Input
+            value={form.serverIp}
+            onChange={e => setForm(f => ({ ...f, serverIp: e.target.value }))}
+            placeholder="e.g. play.example.com"
+            className="bg-black/40 border-white/10 text-white font-mono"
+          />
+          <p className="text-[10px] text-muted-foreground/50 mt-1">Displayed on homepage and leaderboard header.</p>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Discord Invite URL</label>
+          <Input
+            value={form.discordUrl}
+            onChange={e => setForm(f => ({ ...f, discordUrl: e.target.value }))}
+            placeholder="https://discord.gg/..."
+            className="bg-black/40 border-white/10 text-white"
+          />
+          <p className="text-[10px] text-muted-foreground/50 mt-1">Used for all Discord join buttons across the site.</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 font-bold h-10 px-8">
+            {saving ? "Saving..." : "Save Settings"}
+          </Button>
+          {saved && (
+            <motion.span initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }}
+              className="text-sm font-semibold text-green-400">
+              Saved successfully
+            </motion.span>
+          )}
+        </div>
+      </form>
+
+      {settings && (
+        <div className="glass-card rounded-xl border border-white/8 p-4 flex flex-col gap-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Current Live Values</p>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary/60 w-20">Server IP</span>
+              <span className="font-mono text-sm text-white bg-white/5 px-3 py-1 rounded border border-white/10">{settings.serverIp || <span className="text-muted-foreground/40 italic">not set</span>}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary/60 w-20">Discord</span>
+              <span className="font-mono text-xs text-[#7289da] bg-white/5 px-3 py-1 rounded border border-white/10 max-w-xs truncate">{settings.discordUrl || <span className="text-muted-foreground/40 italic">not set</span>}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 export default function Admin() {
   const { data: user, isLoading } = useGetMe();
@@ -1337,6 +1426,7 @@ export default function Admin() {
           {tab === "matches"       && <MatchesTab />}
           {tab === "tests"         && <TestsTab />}
           {tab === "announcements" && <AnnouncementsTab userId={(user as any).id} />}
+          {tab === "settings"      && <SettingsTab />}
         </motion.div>
 
       </div>
