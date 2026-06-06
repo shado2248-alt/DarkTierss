@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   useGetMe, useGetAdminStats, useListUsers, useUpdateUser, useGetAnalytics,
-  useListPlayers, useDeletePlayer, useResetPlayerRating, useChangePlayerTier,
+  useListPlayers, useCreatePlayer, useUpdatePlayer, useDeletePlayer, useResetPlayerRating, useChangePlayerTier,
+  useGetPlayerRatings,
   useListMatches, useCreateMatch, useDeleteMatch,
   useListTests, useUpdateTest,
   useListAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement,
@@ -21,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type AdminTab = "overview" | "users" | "players" | "matches" | "tests" | "announcements" | "gamemodes" | "tiers";
+type AdminTab = "overview" | "users" | "players" | "ratings" | "matches" | "tests" | "announcements" | "gamemodes" | "tiers";
 
 const COLORS = ["#8b5cf6", "#6366f1", "#f97316", "#22c55e", "#ec4899", "#14b8a6", "#f43f5e", "#a855f7", "#06b6d4", "#84cc16"];
 
@@ -35,6 +36,7 @@ const ALL_TABS: { id: AdminTab; label: string; icon: React.ReactNode; minRole: s
   { id: "overview",      label: "Overview",   icon: <LayoutDashboard className="w-4 h-4" />, minRole: "admin" },
   { id: "users",         label: "Users",      icon: <Users className="w-4 h-4" />,           minRole: "admin" },
   { id: "players",       label: "Players",    icon: <ShieldCheck className="w-4 h-4" />,     minRole: "admin" },
+  { id: "ratings",       label: "Ratings",    icon: <RefreshCw className="w-4 h-4" />,       minRole: "admin" },
   { id: "matches",       label: "Matches",    icon: <Swords className="w-4 h-4" />,          minRole: "tester" },
   { id: "tests",         label: "Tests",      icon: <CheckCircle className="w-4 h-4" />,     minRole: "tester" },
   { id: "announcements", label: "News",       icon: <Megaphone className="w-4 h-4" />,       minRole: "tester" },
@@ -230,24 +232,69 @@ function UsersTab({ myRole }: { myRole: string }) {
 // ── PLAYERS ───────────────────────────────────────────────────────────────────
 function PlayersTab() {
   const [search, setSearch] = useState("");
-  const { data, refetch } = useListPlayers({ search: search || undefined, limit: 50 });
+  const { data, refetch } = useListPlayers({ search: search || undefined, limit: 100 });
   const { data: gamemodes } = useListGamemodes();
   const deletePlayer = useDeletePlayer();
-  const resetRating = useResetPlayerRating();
+  const updatePlayer = useUpdatePlayer();
+  const createPlayer = useCreatePlayer();
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ username: "", uuid: "", region: "NA" });
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ username: "", uuid: "", region: "NA" });
+  const [creating, setCreating] = useState(false);
 
+  const startEdit = (p: any) => { setEditId(p.id); setEditForm({ username: p.username, uuid: p.uuid, region: p.region ?? "NA" }); };
+  const handleSave = async (id: number) => {
+    await updatePlayer.mutateAsync({ id, data: { username: editForm.username, uuid: editForm.uuid, region: editForm.region } });
+    setEditId(null); refetch();
+  };
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this player and all their data?")) return;
+    if (!confirm("Delete this player and ALL their data (ratings, matches)?")) return;
     await deletePlayer.mutateAsync({ id }); refetch();
   };
-  const handleReset = async (id: number) => {
-    const gmId = gamemodes?.[0]?.id;
-    if (!gmId) return;
-    await resetRating.mutateAsync({ id, data: { gamemodeId: gmId, newRating: 1000 } }); refetch();
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault(); setCreating(true);
+    try {
+      await createPlayer.mutateAsync({ data: { username: createForm.username, uuid: createForm.uuid || crypto.randomUUID(), region: createForm.region } });
+      setCreateForm({ username: "", uuid: "", region: "NA" }); setShowCreate(false); refetch();
+    } finally { setCreating(false); }
   };
+
+  const REGIONS = ["NA", "EU", "AS", "OC", "SA"];
 
   return (
     <div className="flex flex-col gap-4">
-      <Input placeholder="Search players..." className="bg-black/40 border-white/10 text-white w-full md:w-72" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="flex items-center gap-3 flex-wrap">
+        <Input placeholder="Search players..." className="bg-black/40 border-white/10 text-white w-full md:w-72" value={search} onChange={e => setSearch(e.target.value)} />
+        <Button size="sm" onClick={() => setShowCreate(v => !v)} className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 text-xs h-8 ml-auto">
+          {showCreate ? "Cancel" : <><Plus className="w-3.5 h-3.5 mr-1" />Add Player</>}
+        </Button>
+      </div>
+
+      {showCreate && (
+        <motion.form initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} onSubmit={handleCreate}
+          className="glass-card rounded-xl border border-white/10 p-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">Minecraft Username</label>
+            <Input value={createForm.username} onChange={e => setCreateForm(f => ({ ...f, username: e.target.value }))} placeholder="Username" className="bg-black/40 border-white/10 text-white" required />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">UUID (optional)</label>
+            <Input value={createForm.uuid} onChange={e => setCreateForm(f => ({ ...f, uuid: e.target.value }))} placeholder="Auto-generated if blank" className="bg-black/40 border-white/10 text-white" />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">Region</label>
+            <Select value={createForm.region} onValueChange={v => setCreateForm(f => ({ ...f, region: v }))}>
+              <SelectTrigger className="bg-black/40 border-white/10 text-white text-sm h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>{REGIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-end">
+            <Button type="submit" disabled={creating} className="w-full h-9 bg-primary text-xs">{creating ? "Creating..." : "Create Player"}</Button>
+          </div>
+        </motion.form>
+      )}
+
       <div className="glass-card rounded-2xl overflow-hidden border border-white/10">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
@@ -257,32 +304,211 @@ function PlayersTab() {
             <tbody>
               {data?.players?.map(player => (
                 <tr key={player.id} className="border-b border-white/5 hover:bg-white/3 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <img src={`https://mc-heads.net/avatar/${player.uuid}/28`} alt={player.username} className="w-7 h-7 rounded bg-black"
-                        onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }} />
-                      <span className="font-semibold text-white">{player.username}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground truncate max-w-[120px]">{player.uuid}</td>
-                  <td className="px-4 py-3 text-xs">{player.region}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(player.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center gap-1 justify-end">
-                      <Button size="sm" variant="ghost" onClick={() => handleReset(player.id)} className="text-yellow-400 hover:text-yellow-300 h-6 px-2 text-[10px]">
-                        <RefreshCw className="w-3 h-3 mr-0.5" />Reset
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDelete(player.id)} className="text-red-400 hover:text-red-300 h-6 w-6 p-0">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </td>
+                  {editId === player.id ? (
+                    <>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <img src={`https://mc-heads.net/avatar/${editForm.uuid || player.uuid}/28`} alt="" className="w-7 h-7 rounded bg-black flex-shrink-0"
+                            onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }} />
+                          <Input value={editForm.username} onChange={e => setEditForm(f => ({ ...f, username: e.target.value }))} className="bg-black/60 border-white/10 text-white h-7 text-sm w-36" />
+                        </div>
+                      </td>
+                      <td className="px-3 py-2"><Input value={editForm.uuid} onChange={e => setEditForm(f => ({ ...f, uuid: e.target.value }))} className="bg-black/60 border-white/10 text-white h-7 text-xs font-mono w-48" /></td>
+                      <td className="px-3 py-2">
+                        <Select value={editForm.region} onValueChange={v => setEditForm(f => ({ ...f, region: v }))}>
+                          <SelectTrigger className="h-7 text-xs w-20 bg-black/40 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                          <SelectContent>{REGIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(player.createdAt).toLocaleDateString()}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => handleSave(player.id)} className="h-6 px-2 text-green-400 text-xs"><Save className="w-3 h-3 mr-0.5" />Save</Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditId(null)} className="h-6 w-6 p-0 text-muted-foreground"><X className="w-3 h-3" /></Button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <img src={`https://mc-heads.net/avatar/${player.uuid}/28`} alt={player.username} className="w-7 h-7 rounded bg-black"
+                            onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }} />
+                          <span className="font-semibold text-white">{player.username}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[160px] truncate">{player.uuid}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded border bg-white/5 border-white/10 text-white/70">{player.region ?? "—"}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(player.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center gap-1 justify-end">
+                          <Button size="sm" variant="ghost" onClick={() => startEdit(player)} className="h-6 w-6 p-0 text-muted-foreground hover:text-white"><Pencil className="w-3 h-3" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(player.id)} className="text-red-400 hover:text-red-300 h-6 w-6 p-0"><Trash2 className="w-3 h-3" /></Button>
+                        </div>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── RATINGS ───────────────────────────────────────────────────────────────────
+function RatingsTab() {
+  const [search, setSearch] = useState("");
+  const { data: playersData } = useListPlayers({ search: search || undefined, limit: 100 });
+  const { data: gamemodes } = useListGamemodes();
+  const { data: tiersAll } = useListTiers({});
+  const resetRating = useResetPlayerRating();
+  const changeTier = useChangePlayerTier();
+  const qc = useQueryClient();
+
+  const [expandedPlayer, setExpandedPlayer] = useState<number | null>(null);
+  const [editingRating, setEditingRating] = useState<{ playerId: number; gamemodeId: number } | null>(null);
+  const [ratingInput, setRatingInput] = useState("");
+  const [tierInput, setTierInput] = useState("");
+
+  const handleResetRating = async (playerId: number, gamemodeId: number) => {
+    if (!confirm("Reset this player's rating to 1000?")) return;
+    await resetRating.mutateAsync({ id: playerId, data: { gamemodeId, newRating: 1000 } });
+    qc.invalidateQueries();
+  };
+
+  const handleSetRating = async (playerId: number, gamemodeId: number) => {
+    const newRating = parseInt(ratingInput);
+    if (isNaN(newRating) || newRating < 0) return;
+    await resetRating.mutateAsync({ id: playerId, data: { gamemodeId, newRating } });
+    setEditingRating(null); setRatingInput(""); qc.invalidateQueries();
+  };
+
+  const handleChangeTier = async (playerId: number, gamemodeId: number, tierId: number) => {
+    await changeTier.mutateAsync({ id: playerId, data: { gamemodeId, tierId } });
+    qc.invalidateQueries();
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <Input placeholder="Search players..." className="bg-black/40 border-white/10 text-white w-full md:w-72" value={search} onChange={e => setSearch(e.target.value)} />
+        <span className="text-xs text-muted-foreground flex-shrink-0">{playersData?.players?.length ?? 0} players</span>
+      </div>
+      <p className="text-xs text-muted-foreground/60">Click a player row to expand their ratings per gamemode. Edit ELO or manually change tier.</p>
+
+      <div className="flex flex-col gap-2">
+        {(playersData?.players ?? []).map(player => {
+          const isOpen = expandedPlayer === player.id;
+          return (
+            <div key={player.id} className="glass-card rounded-xl border border-white/10 overflow-hidden">
+              <button
+                onClick={() => setExpandedPlayer(isOpen ? null : player.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/3 transition-colors text-left"
+              >
+                <img src={`https://mc-heads.net/avatar/${player.uuid}/28`} alt={player.username} className="w-7 h-7 rounded bg-black flex-shrink-0"
+                  onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }} />
+                <span className="font-semibold text-white flex-1">{player.username}</span>
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded border bg-white/5 border-white/10 text-white/50">{player.region ?? "—"}</span>
+                <span className="text-muted-foreground/40 text-xs">{isOpen ? "▲" : "▼"}</span>
+              </button>
+              {isOpen && (
+                <PlayerRatingsManager
+                  playerId={player.id}
+                  gamemodes={gamemodes ?? []}
+                  tiersAll={(tiersAll as any[]) ?? []}
+                  onResetRating={handleResetRating}
+                  onSetRating={handleSetRating}
+                  onChangeTier={handleChangeTier}
+                  editingRating={editingRating}
+                  setEditingRating={setEditingRating}
+                  ratingInput={ratingInput}
+                  setRatingInput={setRatingInput}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PlayerRatingsManager({
+  playerId, gamemodes, tiersAll, onResetRating, onSetRating, onChangeTier,
+  editingRating, setEditingRating, ratingInput, setRatingInput
+}: {
+  playerId: number;
+  gamemodes: any[];
+  tiersAll: any[];
+  onResetRating: (pid: number, gmId: number) => Promise<void>;
+  onSetRating: (pid: number, gmId: number) => Promise<void>;
+  onChangeTier: (pid: number, gmId: number, tierId: number) => Promise<void>;
+  editingRating: { playerId: number; gamemodeId: number } | null;
+  setEditingRating: (v: { playerId: number; gamemodeId: number } | null) => void;
+  ratingInput: string;
+  setRatingInput: (v: string) => void;
+}) {
+  const { data: ratings } = useGetPlayerRatings(playerId);
+  const ratingsArr = (ratings as any[]) ?? [];
+
+  return (
+    <div className="border-t border-white/8 bg-black/20 overflow-x-auto">
+      <table className="w-full text-sm text-left">
+        <thead className="text-[10px] uppercase tracking-widest text-muted-foreground bg-black/20 border-b border-white/5">
+          <tr>{["Gamemode", "Rating", "Peak", "W/L", "Tier", "Actions"].map(h => <th key={h} className="px-4 py-2">{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {gamemodes.map(gm => {
+            const r = ratingsArr.find((x: any) => x.gamemodeId === gm.id);
+            const gmTiers = tiersAll.filter((t: any) => t.gamemodeId === gm.id).sort((a: any, b: any) => a.rank - b.rank);
+            const isEditing = editingRating?.playerId === playerId && editingRating?.gamemodeId === gm.id;
+            return (
+              <tr key={gm.id} className="border-b border-white/5 hover:bg-white/3">
+                <td className="px-4 py-2 font-bold text-primary text-xs">{gm.name}</td>
+                <td className="px-4 py-2">
+                  {isEditing ? (
+                    <div className="flex items-center gap-1">
+                      <Input type="number" value={ratingInput} onChange={e => setRatingInput(e.target.value)} className="bg-black/60 border-white/10 text-white h-6 text-xs w-20" placeholder="ELO" />
+                      <Button size="sm" variant="ghost" onClick={() => onSetRating(playerId, gm.id)} className="h-6 px-1.5 text-green-400 text-[10px]"><Save className="w-3 h-3" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingRating(null)} className="h-6 w-5 p-0 text-muted-foreground"><X className="w-3 h-3" /></Button>
+                    </div>
+                  ) : (
+                    <span className="font-mono font-black text-white">{r?.rating ?? <span className="text-muted-foreground/40">—</span>}</span>
+                  )}
+                </td>
+                <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{r?.peakRating ?? "—"}</td>
+                <td className="px-4 py-2 text-xs text-muted-foreground">{r ? `${r.wins}W / ${r.losses}L` : "—"}</td>
+                <td className="px-4 py-2">
+                  {r && gmTiers.length > 0 ? (
+                    <Select value={r.tierId ? String(r.tierId) : "none"} onValueChange={v => v !== "none" && onChangeTier(playerId, gm.id, +v)}>
+                      <SelectTrigger className="h-6 text-[10px] w-20 bg-black/40 border-white/10 text-white">
+                        <SelectValue placeholder={r.tierName ?? "None"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {gmTiers.map((t: any) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : <span className="text-muted-foreground/30 text-xs">—</span>}
+                </td>
+                <td className="px-4 py-2">
+                  {r && (
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingRating({ playerId, gamemodeId: gm.id }); setRatingInput(String(r.rating)); }} className="h-6 w-6 p-0 text-muted-foreground hover:text-white"><Pencil className="w-3 h-3" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => onResetRating(playerId, gm.id)} className="h-6 px-1.5 text-yellow-400 hover:text-yellow-300 text-[10px]"><RefreshCw className="w-3 h-3 mr-0.5" />Reset</Button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -852,6 +1078,7 @@ export default function Admin() {
           {tab === "overview" && <OverviewTab />}
           {tab === "users" && <UsersTab myRole={myRole} />}
           {tab === "players" && <PlayersTab />}
+          {tab === "ratings" && <RatingsTab />}
           {tab === "matches" && <MatchesTab />}
           {tab === "tests" && <TestsTab />}
           {tab === "announcements" && <AnnouncementsTab userId={user.id} />}
