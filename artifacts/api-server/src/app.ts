@@ -43,21 +43,27 @@ app.use(express.urlencoded({ extended: true }));
 const sessionSecret = process.env.SESSION_SECRET ?? "dark-tiers-secret-change-me";
 const PgSession = connectPgSimple(session);
 
+// When running behind Replit's HTTPS proxy (or any HTTPS proxy), cookies must
+// be Secure + SameSite=None so they survive the iframe / cross-origin context.
+const behindProxy = !!process.env.REPLIT_DOMAINS;
+
 app.use(
   session({
     store: process.env.DATABASE_URL
       ? new PgSession({
           conString: process.env.DATABASE_URL,
           tableName: "sessions",
-          createTableIfMissing: false,
+          createTableIfMissing: true,
         })
       : undefined,
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: behindProxy,
+      sameSite: behindProxy ? "none" : "lax",
+      httpOnly: true,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     },
   })
 );
