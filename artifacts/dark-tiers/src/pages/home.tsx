@@ -204,7 +204,7 @@ export default function Home() {
 
           {/* ── Right column: mini leaderboard ── */}
           <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.2, ease: EASE }}
-            className="hidden lg:block">
+            className="hidden lg:block w-full">
             <div className="glass-card border border-white/12 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(120,40,200,0.18)]">
               {/* Card header */}
               <div className="px-5 py-3.5 border-b border-white/8 flex items-center justify-between bg-black/30">
@@ -264,6 +264,62 @@ export default function Home() {
             </div>
           </motion.div>
 
+        </div>
+      </section>
+
+      {/* ══ TOP RANKED (mobile only) ════════════════════════════ */}
+      <section className="lg:hidden px-4 pb-10 -mt-4 relative z-10">
+        <div className="max-w-lg mx-auto">
+          <div className="glass-card border border-white/12 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(120,40,200,0.15)]">
+            <div className="px-5 py-3.5 border-b border-white/8 flex items-center justify-between bg-black/30">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-primary" />
+                <span className="text-sm font-black text-white">Top Ranked</span>
+              </div>
+              <Link href="/leaderboard" className="text-[11px] text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5">
+                Full Board <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="divide-y divide-white/5">
+              {leaderboard?.entries?.length ? leaderboard.entries.map((entry, i) => (
+                <div key={entry.playerId}
+                  className={`flex items-center gap-3 px-5 py-3.5 hover:bg-white/4 transition-colors
+                    ${i === 0 ? "bg-gradient-to-r from-yellow-500/8 to-transparent" : ""}`}>
+                  <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black
+                    ${i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]"
+                    : i === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-black"
+                    : i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-black"
+                    : "bg-white/8 text-white/60"}`}>
+                    {i + 1}
+                  </span>
+                  <img
+                    src={`https://mc-heads.net/body/${entry.uuid}/48`}
+                    alt={entry.username}
+                    className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-md"
+                    onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.uuid}/32`; }}
+                  />
+                  <Link href={`/players/${entry.playerId}`} className="flex-1 font-bold text-sm text-white hover:text-primary transition-colors min-w-0 break-words">
+                    {entry.username}
+                  </Link>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <TierBadge tierName={entry.tierName ?? null} tierColor={entry.tierColor ?? null} />
+                    <span className="text-primary font-black text-sm font-mono w-12 text-right">{entry.rating}</span>
+                  </div>
+                </div>
+              )) : (
+                <div className="px-5 py-8 text-center text-muted-foreground text-sm">No ranked players yet.</div>
+              )}
+            </div>
+            <div className="px-5 py-3 bg-black/20 border-t border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Users className="w-3 h-3" />
+                {stats?.totalPlayers ?? 0} total players
+              </div>
+              <Link href="/players" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
+                Browse All
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

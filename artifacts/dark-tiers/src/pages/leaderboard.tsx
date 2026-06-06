@@ -165,7 +165,7 @@ function TierColumn({
 }) {
   const style = TIER_NUM_STYLE[tierNum] ?? TIER_NUM_STYLE[5];
   return (
-    <div className={`flex-1 min-w-[160px] rounded-xl border ${style.border} bg-card/60 overflow-hidden`}>
+    <div className={`flex-1 min-w-[200px] rounded-xl border ${style.border} bg-card/60 overflow-hidden`}>
       {/* Header */}
       <div className={`px-4 py-3 border-b ${style.border} bg-black/20`}>
         <div className="flex items-center gap-2">
@@ -192,7 +192,7 @@ function TierColumn({
               />
               <Link
                 href={`/players/${entry.playerId}`}
-                className={`text-[13px] font-semibold hover:text-primary transition-colors truncate flex-1
+                className={`text-[13px] font-semibold hover:text-primary transition-colors flex-1 min-w-0 break-words
                   ${isHT ? "text-green-300" : isLT ? "text-red-300" : "text-white/85"}`}
               >
                 {entry.username}

@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -40,9 +41,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const sessionSecret = process.env.SESSION_SECRET ?? "dark-tiers-secret-change-me";
+const PgSession = connectPgSimple(session);
 
 app.use(
   session({
+    store: process.env.DATABASE_URL
+      ? new PgSession({
+          conString: process.env.DATABASE_URL,
+          tableName: "sessions",
+          createTableIfMissing: false,
+        })
+      : undefined,
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
