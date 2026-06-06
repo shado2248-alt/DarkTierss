@@ -72,7 +72,8 @@ export default function Players() {
   });
 
   const filtered = (data?.players ?? []).filter(p =>
-    !search || p.username.toLowerCase().includes(search.toLowerCase())
+    p.rankedGamemodes > 0 &&
+    (!search || p.username.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (

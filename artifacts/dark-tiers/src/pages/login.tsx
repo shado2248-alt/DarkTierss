@@ -46,11 +46,10 @@ export default function Login() {
     setIsLoading(true);
     try {
       await apiPost("/api/auth/login", { email: loginEmail, password: loginPassword });
-      await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-      navigate("/");
+      // Full reload to ensure session cookie is picked up and navbar shows correct role
+      window.location.href = "/";
     } catch (err: any) {
       setError(err.message);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -73,12 +72,11 @@ export default function Login() {
         password: regPassword,
         minecraftUsername: regUsername,
       });
-      await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
       setSuccess("Account created! Redirecting...");
-      setTimeout(() => navigate("/"), 1000);
+      // Full reload so session cookie is applied and role shows correctly
+      setTimeout(() => { window.location.href = "/"; }, 900);
     } catch (err: any) {
       setError(err.message);
-    } finally {
       setIsLoading(false);
     }
   };

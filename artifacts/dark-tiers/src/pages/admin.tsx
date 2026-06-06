@@ -1027,8 +1027,14 @@ export default function Admin() {
   const defaultTab = tabList[0]?.id ?? "matches";
   const [tab, setTab] = useState<AdminTab>(defaultTab);
 
-  if (isLoading) return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>;
-  if (!user || !hasAccess(myRole, "tester")) return <Redirect to="/" />;
+  if (isLoading) return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+      <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      <span className="text-sm">Checking access...</span>
+    </div>
+  );
+  if (!user) return <Redirect to="/login" />;
+  if (!hasAccess(myRole, "tester")) return <Redirect to="/" />;
 
   const panelTitle =
     myRole === "owner" ? "Owner Panel" :
