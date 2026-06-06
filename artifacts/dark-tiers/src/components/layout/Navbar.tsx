@@ -99,9 +99,10 @@ export function Navbar() {
 
           {user ? (
             <div className="hidden md:flex items-center gap-3">
-              {(user.role === "admin" || user.role === "owner") && (
+              {(["owner","admin","moderator","tester"] as string[]).includes(user.role) && (
                 <Link href="/admin" className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1 bg-primary/10 px-3 py-1.5 rounded-md transition-colors">
-                  <ShieldAlert className="w-4 h-4" /> <span>Admin</span>
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>{user.role === "owner" ? "Owner Panel" : user.role === "admin" || user.role === "moderator" ? "Admin Panel" : "Staff Panel"}</span>
                 </Link>
               )}
               {/* Clickable avatar → profile page */}
@@ -180,13 +181,14 @@ export function Navbar() {
               <div className="border-t border-white/5 mt-2 pt-2">
                 {user ? (
                   <div className="flex flex-col gap-2">
-                    {(user.role === "admin" || user.role === "owner") && (
+                    {(["owner","admin","moderator","tester"] as string[]).includes(user.role) && (
                       <Link
                         href="/admin"
                         onClick={() => setMobileOpen(false)}
                         className="px-3 py-2.5 rounded-md text-sm font-medium text-primary bg-primary/10 flex items-center gap-2 transition-colors hover:bg-primary/20"
                       >
-                        <ShieldAlert className="w-4 h-4" /> Admin
+                        <ShieldAlert className="w-4 h-4" />
+                        {user.role === "owner" ? "Owner Panel" : user.role === "admin" || user.role === "moderator" ? "Admin Panel" : "Staff Panel"}
                       </Link>
                     )}
                     <div className="flex items-center justify-between px-3 py-2">

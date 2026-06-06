@@ -408,6 +408,8 @@ export default function Compare() {
   const p2Total = (p2?.ratings ?? []).reduce((a: number, r: any) => a + (r.totalMatches ?? 0), 0);
   const p1Wins  = (p1?.ratings ?? []).reduce((a: number, r: any) => a + (r.wins ?? 0), 0);
   const p2Wins  = (p2?.ratings ?? []).reduce((a: number, r: any) => a + (r.wins ?? 0), 0);
+  const p1Losses = p1Total - p1Wins;
+  const p2Losses = p2Total - p2Wins;
   const p1Peak  = (p1?.ratings ?? []).reduce((a: number, r: any) => Math.max(a, r.peakRating ?? r.rating ?? 0), 0);
   const p2Peak  = (p2?.ratings ?? []).reduce((a: number, r: any) => Math.max(a, r.peakRating ?? r.rating ?? 0), 0);
   const p1Best  = (p1?.ratings ?? []).reduce((a: number, r: any) => Math.max(a, r.rating ?? 0), 0);
@@ -416,6 +418,43 @@ export default function Compare() {
   const p2WR    = pct(p2Wins, p2Total);
   const p1Ranked = (p1?.ratings ?? []).filter((r: any) => r.rating != null).length;
   const p2Ranked = (p2?.ratings ?? []).filter((r: any) => r.rating != null).length;
+
+  const getMostActive = (ratings: any[]) => {
+    if (!ratings?.length) return "—";
+    const best = ratings.reduce((a: any, r: any) => ((r.totalMatches ?? 0) > (a?.totalMatches ?? 0) ? r : a), null);
+    return best?.gamemodeName ?? "—";
+  };
+  const p1MostActive = getMostActive(p1?.ratings ?? []);
+  const p2MostActive = getMostActive(p2?.ratings ?? []);
+
+  const getJoinAge = (dateStr: string) => {
+    if (!dateStr) return "—";
+    const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+    if (days < 30) return `${days}d`;
+    if (days < 365) return `${Math.floor(days / 30)}mo`;
+    return `${Math.floor(days / 365)}yr`;
+  };
+  const p1Age = getJoinAge(p1?.createdAt);
+  const p2Age = getJoinAge(p2?.createdAt);
+
+  const p1HighestTier = (p1?.ratings ?? []).reduce((best: string | null, r: any) => {
+    if (!r.tierName) return best;
+    if (!best) return r.tierName;
+    const rankA = r.tierName.startsWith("HT") ? 0 : 1;
+    const numA = parseInt(r.tierName.replace(/[^0-9]/g, ""));
+    const rankB = best.startsWith("HT") ? 0 : 1;
+    const numB = parseInt(best.replace(/[^0-9]/g, ""));
+    return (numA < numB || (numA === numB && rankA < rankB)) ? r.tierName : best;
+  }, null) ?? "—";
+  const p2HighestTier = (p2?.ratings ?? []).reduce((best: string | null, r: any) => {
+    if (!r.tierName) return best;
+    if (!best) return r.tierName;
+    const rankA = r.tierName.startsWith("HT") ? 0 : 1;
+    const numA = parseInt(r.tierName.replace(/[^0-9]/g, ""));
+    const rankB = best.startsWith("HT") ? 0 : 1;
+    const numB = parseInt(best.replace(/[^0-9]/g, ""));
+    return (numA < numB || (numA === numB && rankA < rankB)) ? r.tierName : best;
+  }, null) ?? "—";
 
   return (
     <div className="min-h-screen text-foreground">
@@ -568,10 +607,14 @@ export default function Compare() {
                   </div>
                   <StatBlock label="Best Rating" left={p1Best || "—"} right={p2Best || "—"} />
                   <StatBlock label="Peak Rating" left={p1Peak || "—"} right={p2Peak || "—"} />
+                  <StatBlock label="Highest Tier" left={p1HighestTier} right={p2HighestTier} highlight="tie" />
                   <StatBlock label="Total Matches" left={p1Total} right={p2Total} />
                   <StatBlock label="Wins" left={p1Wins} right={p2Wins} />
+                  <StatBlock label="Losses" left={p1Losses} right={p2Losses} highlight={p1Losses < p2Losses ? "left" : p2Losses < p1Losses ? "right" : "tie"} />
                   <StatBlock label="Win Rate" left={`${p1WR}%`} right={`${p2WR}%`} />
                   <StatBlock label="Gamemodes" left={p1Ranked} right={p2Ranked} />
+                  <StatBlock label="Most Active" left={p1MostActive} right={p2MostActive} highlight="tie" />
+                  <StatBlock label="Account Age" left={p1Age} right={p2Age} highlight="tie" />
                 </div>
               </div>
 

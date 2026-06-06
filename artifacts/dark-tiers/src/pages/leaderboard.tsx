@@ -1,13 +1,104 @@
 import { useState, Fragment } from "react";
-import { useGetLeaderboard, useListGamemodes } from "@workspace/api-client-react";
-import { useQuery } from "@tanstack/react-query";
+import { useGetLeaderboard, useListGamemodes, useGetMe, useCreateMatch, useListPlayers } from "@workspace/api-client-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { TierBadge } from "@/components/ui/tier-badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Plus, X, Swords } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GamemodeIcon, trophyImg } from "@/lib/gamemode-icons";
+
+const ROLE_RANK: Record<string, number> = { user: 0, tester: 1, moderator: 2, admin: 3, owner: 4 };
+function isStaff(role: string) { return (ROLE_RANK[role] ?? 0) >= 1; }
+
+function PostMatchModal({ onClose }: { onClose: () => void }) {
+  const { data: players } = useListPlayers({ limit: 200 });
+  const { data: gamemodes } = useListGamemodes();
+  const createMatch = useCreateMatch();
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ gamemodeId: "", player1Id: "", player2Id: "", winnerId: "", score: "" });
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const eligible = [form.player1Id, form.player2Id].filter(Boolean).map(id => players?.players?.find(p => p.id === +id)).filter(Boolean);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.gamemodeId || !form.player1Id || !form.player2Id || !form.winnerId || !form.score) {
+      setError("All fields are required."); return;
+    }
+    setCreating(true); setError(null);
+    try {
+      await createMatch.mutateAsync({ data: { gamemodeId: +form.gamemodeId, player1Id: +form.player1Id, player2Id: +form.player2Id, winnerId: +form.winnerId, score: form.score } });
+      qc.invalidateQueries();
+      setDone(true);
+      setTimeout(onClose, 1200);
+    } catch (err: any) {
+      setError(err.message ?? "Failed to create match.");
+    } finally { setCreating(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.2 }}
+        className="relative z-10 glass-card border border-white/10 rounded-2xl p-6 w-full max-w-lg"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Swords className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-black text-white">Post Match Result</h2>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {done ? (
+          <div className="py-6 text-center">
+            <div className="text-green-400 font-black text-lg mb-1">Match Posted!</div>
+            <p className="text-sm text-muted-foreground">ELO updated and leaderboard refreshed.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Gamemode", field: "gamemodeId", items: gamemodes?.map(g => ({ id: g.id, name: g.name })) },
+                { label: "Player 1", field: "player1Id", items: players?.players?.map(p => ({ id: p.id, name: p.username })) },
+                { label: "Player 2", field: "player2Id", items: players?.players?.map(p => ({ id: p.id, name: p.username })) },
+                { label: "Winner", field: "winnerId", items: eligible?.map((p: any) => ({ id: p.id, name: p.username })) },
+              ].map(({ label, field, items }) => (
+                <div key={field}>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">{label}</label>
+                  <Select value={(form as any)[field]} onValueChange={v => setForm(f => ({ ...f, [field]: v }))}>
+                    <SelectTrigger className="bg-black/40 border-white/10 text-white text-sm h-9"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>{items?.map((i: any) => <SelectItem key={i.id} value={String(i.id)}>{i.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1 block">Score (e.g. 3-1)</label>
+              <Input placeholder="3-1" value={form.score} onChange={e => setForm(f => ({ ...f, score: e.target.value }))} className="bg-black/40 border-white/10 text-white h-9 text-sm" />
+            </div>
+            {error && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+            <Button type="submit" disabled={creating} className="w-full bg-primary hover:bg-primary/90 text-white font-bold">
+              {creating ? "Posting..." : "Post Match"}
+            </Button>
+          </form>
+        )}
+      </motion.div>
+    </div>
+  );
+}
 
 /* ── Types ───────────────────────────────────────────────── */
 type OverallPlayer = {
@@ -216,6 +307,10 @@ function TierColumn({
 export default function Leaderboard() {
   const [view, setView] = useState<string>("overall");
   const [search, setSearch] = useState("");
+  const [postMatchOpen, setPostMatchOpen] = useState(false);
+
+  const { data: me } = useGetMe();
+  const myRole = (me as any)?.role ?? "user";
 
   const { data: gamemodes } = useListGamemodes();
 
@@ -263,7 +358,7 @@ export default function Leaderboard() {
       <div className="w-full max-w-screen-xl px-4 flex flex-col gap-0">
 
         {/* Header */}
-        <div className="flex items-end justify-between mb-5">
+        <div className="flex items-end justify-between mb-5 gap-3 flex-wrap">
           <div>
             <h1 className="text-2xl font-black text-white tracking-tight">Rankings</h1>
             <p className="text-xs text-muted-foreground/60 mt-1">
@@ -272,16 +367,32 @@ export default function Leaderboard() {
                 : `${tableData?.total ?? 0} players · ${tabs.find(t => t.id === view)?.label ?? ""}`}
             </p>
           </div>
-          <div className="relative w-52 flex-shrink-0">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/50" />
-            <Input
-              placeholder="Search player..."
-              className="pl-8 h-8 text-xs bg-card border-border/40 text-white placeholder:text-muted-foreground/40"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isStaff(myRole) && (
+              <Button
+                size="sm"
+                onClick={() => setPostMatchOpen(true)}
+                className="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 text-xs h-8 gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Post Match
+              </Button>
+            )}
+            <div className="relative w-48">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/50" />
+              <Input
+                placeholder="Search player..."
+                className="pl-8 h-8 text-xs bg-card border-border/40 text-white placeholder:text-muted-foreground/40"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
           </div>
         </div>
+
+        <AnimatePresence>
+          {postMatchOpen && <PostMatchModal onClose={() => setPostMatchOpen(false)} />}
+        </AnimatePresence>
 
         {/* Gamemode tabs */}
         <div className="flex items-end overflow-x-auto scrollbar-none gap-0.5">
