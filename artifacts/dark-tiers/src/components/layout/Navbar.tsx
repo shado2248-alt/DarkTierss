@@ -43,8 +43,9 @@ export function Navbar() {
               whileHover={{ scale: 1.08 }}
               transition={{ type: "spring", stiffness: 400, damping: 15 }}
             />
-            <span className="text-xl font-black tracking-tighter text-white group-hover:text-primary transition-colors duration-200">
-              DARK TIERS
+            <span className="text-xl font-black tracking-tighter">
+              <span className="text-red-500">DARK</span>
+              <span className="text-violet-500"> TIERS</span>
             </span>
           </Link>
 

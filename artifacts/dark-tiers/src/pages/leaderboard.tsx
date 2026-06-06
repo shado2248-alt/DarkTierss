@@ -9,6 +9,7 @@ import { Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GamemodeIcon, trophyImg } from "@/lib/gamemode-icons";
 
+/* ── Types ───────────────────────────────────────────────── */
 type OverallPlayer = {
   rank: number;
   playerId: number;
@@ -41,18 +42,34 @@ type LeaderboardEntry = {
   totalMatches: number;
 };
 
-const TIER_ORDER = ["HT1","LT1","HT2","LT2","HT3","LT3","HT4","LT4","HT5","LT5"];
-
+/* ── Helpers ─────────────────────────────────────────────── */
 const REGION_CLS: Record<string, string> = {
-  NA: "text-red-400 border-red-500/40 bg-red-500/10",
-  EU: "text-blue-400 border-blue-500/40 bg-blue-500/10",
-  AS: "text-yellow-400 border-yellow-500/40 bg-yellow-500/10",
-  OC: "text-green-400 border-green-500/40 bg-green-500/10",
-  SA: "text-orange-400 border-orange-500/40 bg-orange-500/10",
+  NA: "text-red-400 border-red-500/50 bg-red-500/10",
+  EU: "text-blue-400 border-blue-500/50 bg-blue-500/10",
+  AS: "text-yellow-400 border-yellow-500/50 bg-yellow-500/10",
+  OC: "text-green-400 border-green-500/50 bg-green-500/10",
+  SA: "text-orange-400 border-orange-500/50 bg-orange-500/10",
 };
 
+const TIER_NUM_STYLE: Record<number, { header: string; border: string; trophy: string }> = {
+  1: { header: "text-yellow-400",  border: "border-yellow-500/30",  trophy: "#facc15" },
+  2: { header: "text-slate-300",   border: "border-slate-400/30",   trophy: "#94a3b8" },
+  3: { header: "text-orange-400",  border: "border-orange-500/30",  trophy: "#fb923c" },
+  4: { header: "text-emerald-400", border: "border-emerald-500/30", trophy: "#34d399" },
+  5: { header: "text-blue-400",    border: "border-blue-500/30",    trophy: "#60a5fa" },
+};
+
+function tierNumber(tierName: string | null): number {
+  if (!tierName) return 5;
+  if (tierName.includes("1")) return 1;
+  if (tierName.includes("2")) return 2;
+  if (tierName.includes("3")) return 3;
+  if (tierName.includes("4")) return 4;
+  return 5;
+}
+
 function RegionBadge({ region }: { region: string | null }) {
-  if (!region) return <span className="text-muted-foreground/30 text-xs">—</span>;
+  if (!region) return null;
   return (
     <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${REGION_CLS[region] ?? "bg-white/10 text-white border-white/20"}`}>
       {region}
@@ -60,138 +77,127 @@ function RegionBadge({ region }: { region: string | null }) {
   );
 }
 
-function RankNum({ rank }: { rank: number }) {
-  if (rank === 1) return (
-    <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-black bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]">1</span>
-  );
-  if (rank === 2) return (
-    <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-black bg-gradient-to-br from-slate-300 to-slate-400 text-black">2</span>
-  );
-  if (rank === 3) return (
-    <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-black bg-gradient-to-br from-orange-400 to-orange-600 text-black">3</span>
-  );
-  return <span className="text-sm text-muted-foreground/60 tabular-nums font-medium">{rank}</span>;
+/* ── Rank number badge ───────────────────────────────────── */
+function RankBadge({ rank }: { rank: number }) {
+  const base = "text-3xl font-black tabular-nums";
+  if (rank === 1) return <span className={`${base} text-yellow-400`}>{rank}.</span>;
+  if (rank === 2) return <span className={`${base} text-slate-300`}>{rank}.</span>;
+  if (rank === 3) return <span className={`${base} text-orange-400`}>{rank}.</span>;
+  return <span className={`${base} text-muted-foreground/50`}>{rank}.</span>;
 }
 
-function getBestElo(gamemodes: OverallPlayer["gamemodes"]): number {
-  const ratings = gamemodes.map(g => g.rating).filter((r): r is number => r != null);
-  return ratings.length ? Math.max(...ratings) : 0;
-}
+/* ── Overall player card (matches mctiers screenshot) ────── */
+function PlayerCard({
+  player,
+  gamemodes,
+}: {
+  player: OverallPlayer;
+  gamemodes: Array<{ id: number; name: string }>;
+}) {
+  const rankedGms = player.gamemodes.filter(g => g.tierName);
+  const rankBg =
+    player.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30"
+    : player.rank === 2 ? "bg-slate-400/10 border-slate-400/20"
+    : player.rank === 3 ? "bg-orange-500/10 border-orange-500/20"
+    : "bg-card border-border/40";
 
-function Th({ children, right, center, className = "" }: { children: React.ReactNode; right?: boolean; center?: boolean; className?: string }) {
   return (
-    <th className={`px-3 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 whitespace-nowrap select-none
-      ${right ? "text-right" : center ? "text-center" : "text-left"} ${className}`}>
-      {children}
-    </th>
-  );
-}
+    <div className={`flex rounded-xl overflow-hidden border ${rankBg} transition-all hover:border-primary/40`}>
+      {/* Left — rank + skin */}
+      <div className="flex flex-col items-center justify-center gap-2 px-4 py-4 min-w-[88px] bg-black/20 flex-shrink-0">
+        <RankBadge rank={player.rank} />
+        <img
+          src={`https://mc-heads.net/body/${player.uuid}/80`}
+          alt={player.username}
+          className="h-20 w-auto object-contain"
+          onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${player.uuid}/64`; }}
+        />
+      </div>
 
-/* Overall row — shows tier per gamemode */
-function OverallRow({ player, gamemodes }: { player: OverallPlayer; gamemodes: Array<{ id: number; name: string }> }) {
-  const bestElo = getBestElo(player.gamemodes);
-  return (
-    <tr className="border-b border-white/[0.05] hover:bg-white/[0.025] transition-colors">
-      <td className="px-4 py-3 w-12 text-center"><RankNum rank={player.rank} /></td>
-      <td className="px-3 py-3 min-w-[200px]">
-        <div className="flex items-center gap-3">
-          <img
-            src={`https://mc-heads.net/avatar/${player.uuid}/28`}
-            alt={player.username}
-            className="w-7 h-7 rounded flex-shrink-0 image-render-pixel"
-            onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }}
-          />
-          <div>
-            <Link href={`/players/${player.playerId}`} className="font-bold text-sm text-white hover:text-primary transition-colors leading-tight block">
-              {player.username}
-            </Link>
-            <span className="text-[10px] text-muted-foreground/40">{player.rankedGamemodes} mode{player.rankedGamemodes !== 1 ? "s" : ""}</span>
-          </div>
-        </div>
-      </td>
-      <td className="px-3 py-3"><RegionBadge region={player.region} /></td>
-      {gamemodes.map(gm => {
-        const entry = player.gamemodes.find(g => g.gamemodeId === gm.id);
-        return (
-          <td key={gm.id} className="px-3 py-3 text-center">
-            {entry?.tierName
-              ? <TierBadge tierName={entry.tierName} tierColor={entry.tierColor} />
-              : <span className="text-muted-foreground/15 text-xs">—</span>}
-          </td>
-        );
-      })}
-      <td className="px-4 py-3 text-right">
-        <span className={`font-black text-sm font-mono tabular-nums ${player.rank <= 3 ? "text-primary" : "text-white/60"}`}>
-          {bestElo > 0 ? bestElo : "—"}
-        </span>
-      </td>
-    </tr>
-  );
-}
-
-/* Tier section divider */
-function TierDivider({ tierName, tierColor }: { tierName: string; tierColor?: string | null }) {
-  const color = tierColor ?? "#888";
-  return (
-    <tr>
-      <td colSpan={99} className="px-4 pt-5 pb-1">
-        <div className="flex items-center gap-3">
-          <span
-            className="text-[11px] font-black tracking-widest uppercase px-3 py-1 rounded"
-            style={{ color, background: `${color}18`, border: `1px solid ${color}40` }}
+      {/* Right — info + tiers */}
+      <div className="flex-1 px-5 py-4 min-w-0">
+        {/* Name + region */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Link
+            href={`/players/${player.playerId}`}
+            className="font-black text-lg text-white hover:text-primary transition-colors leading-tight truncate"
           >
-            {tierName}
-          </span>
-          <div className="flex-1 h-px" style={{ background: `${color}20` }} />
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-/* Per-gamemode row (inside a tier group) */
-function GamemodeRow({ entry, localRank }: { entry: LeaderboardEntry; localRank: number }) {
-  return (
-    <tr className="border-b border-white/[0.04] hover:bg-white/[0.025] transition-colors">
-      <td className="px-4 py-2.5 w-12 text-center">
-        <span className="text-xs text-muted-foreground/50 tabular-nums font-medium">{localRank}</span>
-      </td>
-      <td className="px-3 py-2.5 min-w-[200px]">
-        <div className="flex items-center gap-3">
-          <img
-            src={`https://mc-heads.net/avatar/${entry.uuid}/28`}
-            alt={entry.username}
-            className="w-7 h-7 rounded flex-shrink-0"
-            onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }}
-          />
-          <Link href={`/players/${entry.playerId}`} className="font-bold text-sm text-white hover:text-primary transition-colors">
-            {entry.username}
+            {player.username}
           </Link>
+          <RegionBadge region={player.region} />
         </div>
-      </td>
-      <td className="px-3 py-2.5">
-        {entry.tierName
-          ? <TierBadge tierName={entry.tierName} tierColor={entry.tierColor} />
-          : <span className="text-muted-foreground/40 text-xs">Unranked</span>}
-      </td>
-      <td className="px-3 py-2.5"><RegionBadge region={entry.region} /></td>
-      <td className="px-3 py-2.5 text-right">
-        <span className="font-black text-sm font-mono tabular-nums text-white/70">{entry.rating}</span>
-      </td>
-      <td className="px-3 py-2.5 text-center">
-        <span className="text-xs font-semibold text-green-400">{entry.wins}</span>
-        <span className="text-muted-foreground/30 mx-1">/</span>
-        <span className="text-xs font-semibold text-red-400">{entry.losses}</span>
-      </td>
-      <td className="px-4 py-2.5 text-right">
-        <span className="text-xs font-bold text-muted-foreground/50 tabular-nums">
-          {entry.totalMatches > 0 ? `${((entry.wins / entry.totalMatches) * 100).toFixed(0)}%` : "—"}
-        </span>
-      </td>
-    </tr>
+        <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+          {rankedGms.length} mode{rankedGms.length !== 1 ? "s" : ""} ranked
+        </p>
+
+        {/* Tiers row */}
+        {rankedGms.length > 0 && (
+          <div className="mt-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-2">Tiers</p>
+            <div className="flex flex-wrap gap-3">
+              {gamemodes.map(gm => {
+                const entry = player.gamemodes.find(g => g.gamemodeId === gm.id);
+                if (!entry?.tierName) return null;
+                return (
+                  <div key={gm.id} className="flex flex-col items-center gap-1">
+                    <div className="w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center">
+                      <GamemodeIcon name={gm.name} size={22} />
+                    </div>
+                    <TierBadge tierName={entry.tierName} tierColor={entry.tierColor} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
+/* ── Per-gamemode tier column ────────────────────────────── */
+function TierColumn({
+  tierNum,
+  entries,
+}: {
+  tierNum: number;
+  entries: LeaderboardEntry[];
+}) {
+  const style = TIER_NUM_STYLE[tierNum] ?? TIER_NUM_STYLE[5];
+  return (
+    <div className={`flex-1 min-w-[160px] rounded-xl border ${style.border} bg-card/60 overflow-hidden`}>
+      {/* Header */}
+      <div className={`px-4 py-3 border-b ${style.border} bg-black/20`}>
+        <div className="flex items-center gap-2">
+          <img src={trophyImg} alt="Tier" className="w-5 h-5 object-contain opacity-80" style={{ filter: `drop-shadow(0 0 4px ${style.trophy})` }} />
+          <span className={`font-black text-sm ${style.header}`}>Tier {tierNum}</span>
+        </div>
+      </div>
+      {/* Player list */}
+      <div className="divide-y divide-white/[0.04]">
+        {entries.map(entry => (
+          <div key={entry.playerId} className="flex items-center gap-2 px-3 py-2 hover:bg-white/[0.03] transition-colors">
+            <img
+              src={`https://mc-heads.net/avatar/${entry.uuid}/20`}
+              alt={entry.username}
+              className="w-5 h-5 rounded flex-shrink-0"
+              onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/20"; }}
+            />
+            <Link
+              href={`/players/${entry.playerId}`}
+              className="text-[13px] font-semibold text-white/85 hover:text-primary transition-colors truncate flex-1"
+            >
+              {entry.username}
+            </Link>
+            {entry.region && <RegionBadge region={entry.region} />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main page ───────────────────────────────────────────── */
 export default function Leaderboard() {
   const [view, setView] = useState<string>("overall");
   const [search, setSearch] = useState("");
@@ -210,13 +216,13 @@ export default function Leaderboard() {
 
   const gamemodeId = view !== "overall" ? parseInt(view) : undefined;
   const { data: tableData, isLoading: tableLoading } = useGetLeaderboard(
-    { gamemodeId, search: search || undefined, sortBy: "rating", limit: 200 },
+    { gamemodeId, sortBy: "rating", limit: 500 },
     { query: { enabled: view !== "overall" } as any }
   );
 
   const tabs = [
-    { id: "overall", label: "Overall", iconName: "overall" },
-    ...(gamemodes?.map(g => ({ id: g.id.toString(), label: g.name, iconName: g.name })) ?? []),
+    { id: "overall", label: "Overall" },
+    ...(gamemodes?.map(g => ({ id: g.id.toString(), label: g.name })) ?? []),
   ];
 
   const isLoading = view === "overall" ? overallLoading : tableLoading;
@@ -225,19 +231,15 @@ export default function Leaderboard() {
     !search || p.username.toLowerCase().includes(search.toLowerCase())
   );
 
-  const gamemodeEntries = (tableData?.entries ?? []) as unknown as LeaderboardEntry[];
-  const filteredGamemode = gamemodeEntries.filter(e =>
+  /* Group per-gamemode entries into tier columns 1–5 */
+  const gmEntries = (tableData?.entries ?? []) as unknown as LeaderboardEntry[];
+  const filteredGm = gmEntries.filter(e =>
     !search || e.username.toLowerCase().includes(search.toLowerCase())
   );
-
-  /* Group per-gamemode entries by tier */
-  const tierGroups = TIER_ORDER
-    .map(tier => ({
-      tier,
-      color: filteredGamemode.find(e => e.tierName === tier)?.tierColor ?? null,
-      entries: filteredGamemode.filter(e => e.tierName === tier),
-    }))
-    .filter(g => g.entries.length > 0);
+  const tierCols = [1, 2, 3, 4, 5].map(n => ({
+    tierNum: n,
+    entries: filteredGm.filter(e => tierNumber(e.tierName) === n),
+  })).filter(c => c.entries.length > 0);
 
   const activeIdx = tabs.findIndex(t => t.id === view);
 
@@ -266,24 +268,24 @@ export default function Leaderboard() {
           </div>
         </div>
 
-        {/* Gamemode tabs — floating above the card */}
+        {/* Gamemode tabs */}
         <div className="flex items-end overflow-x-auto scrollbar-none gap-0.5">
-          {tabs.map((tab, i) => {
+          {tabs.map((tab) => {
             const active = view === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => { setView(tab.id); setSearch(""); }}
-                className={`relative flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-[11px] font-bold whitespace-nowrap transition-all rounded-t-lg -mb-px
+                className={`relative flex-shrink-0 flex flex-col items-center gap-1.5 px-5 py-3 text-[11px] font-bold whitespace-nowrap transition-all rounded-t-xl -mb-px
                   ${active
-                    ? "text-white bg-card border-2 border-border/60 border-b-card z-10"
-                    : "text-muted-foreground/60 hover:text-white/80 bg-transparent"
+                    ? "text-white bg-card border-2 border-border/60 z-10"
+                    : "text-muted-foreground/50 hover:text-white/70"
                   }`}
                 style={active ? { borderBottomColor: "hsl(var(--card))" } : {}}
               >
                 {tab.id === "overall"
-                  ? <img src={trophyImg} alt="Overall" className="w-[18px] h-[18px] object-contain" />
-                  : <GamemodeIcon name={tab.label} size={18} />
+                  ? <img src={trophyImg} alt="Overall" className="w-7 h-7 object-contain" />
+                  : <GamemodeIcon name={tab.label} size={28} />
                 }
                 <span>{tab.label}</span>
               </button>
@@ -291,54 +293,34 @@ export default function Leaderboard() {
           })}
         </div>
 
-        {/* Table card */}
+        {/* Content card */}
         <AnimatePresence mode="wait">
           <motion.div
             key={view}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.1 }}
-            className={`border-2 border-border/60 bg-card overflow-hidden
+            transition={{ duration: 0.15 }}
+            className={`border-2 border-border/60 bg-card overflow-hidden p-5
               ${activeIdx === 0 ? "rounded-b-xl rounded-tr-xl" : "rounded-xl"}`}
           >
             {isLoading ? (
-              <div className="p-6 space-y-2">
-                {Array.from({ length: 14 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 bg-white/4 rounded-lg" />
+              <div className="space-y-3">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-32 bg-white/4 rounded-xl" />
                 ))}
               </div>
             ) : view === "overall" ? (
-              /* ── OVERALL TABLE ── */
+              /* ── OVERALL: card list ── */
               filteredOverall.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-max">
-                    <thead className="border-b-2 border-border/40">
-                      <tr className="bg-white/[0.02]">
-                        <Th center className="w-12">#</Th>
-                        <Th>Player</Th>
-                        <Th>Region</Th>
-                        {(gamemodes ?? []).map(gm => (
-                          <th key={gm.id} className="px-3 py-3 text-center whitespace-nowrap select-none">
-                            <div className="flex flex-col items-center gap-1.5">
-                              <GamemodeIcon name={gm.name} size={18} />
-                              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">{gm.name}</span>
-                            </div>
-                          </th>
-                        ))}
-                        <Th right>Peak ELO</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredOverall.map(player => (
-                        <OverallRow
-                          key={player.playerId}
-                          player={player}
-                          gamemodes={gamemodes?.map(g => ({ id: g.id, name: g.name })) ?? []}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="flex flex-col gap-3">
+                  {filteredOverall.map(player => (
+                    <PlayerCard
+                      key={player.playerId}
+                      player={player}
+                      gamemodes={gamemodes?.map(g => ({ id: g.id, name: g.name })) ?? []}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="py-24 text-center text-sm text-muted-foreground/40">
@@ -346,38 +328,12 @@ export default function Leaderboard() {
                 </div>
               )
             ) : (
-              /* ── PER-GAMEMODE: TIER-GROUPED ── */
-              filteredGamemode.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-max">
-                    <thead className="border-b-2 border-border/40">
-                      <tr className="bg-white/[0.02]">
-                        <Th center className="w-12">#</Th>
-                        <Th>Player</Th>
-                        <Th>Tier</Th>
-                        <Th>Region</Th>
-                        <Th right>ELO</Th>
-                        <Th center>W / L</Th>
-                        <Th right>Win%</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tierGroups.length > 0 ? (
-                        tierGroups.map(group => (
-                          <Fragment key={group.tier}>
-                            <TierDivider tierName={group.tier} tierColor={group.color} />
-                            {group.entries.map(entry => (
-                              <GamemodeRow key={entry.playerId} entry={entry} localRank={entry.rank} />
-                            ))}
-                          </Fragment>
-                        ))
-                      ) : (
-                        filteredGamemode.map(entry => (
-                          <GamemodeRow key={entry.playerId} entry={entry} localRank={entry.rank} />
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+              /* ── PER-GAMEMODE: tier columns ── */
+              tierCols.length > 0 ? (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {tierCols.map(col => (
+                    <TierColumn key={col.tierNum} tierNum={col.tierNum} entries={col.entries} />
+                  ))}
                 </div>
               ) : (
                 <div className="py-24 text-center text-sm text-muted-foreground/40">
