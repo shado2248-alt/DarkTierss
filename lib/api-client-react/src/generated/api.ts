@@ -55,6 +55,8 @@ import type {
   PlayerUpdate,
   RecentActivity,
   ResetRatingInput,
+  SetTierByUsernameInput,
+  SetTierByUsernameResult,
   Test,
   TestInput,
   TestList,
@@ -3102,6 +3104,77 @@ export const useResetPlayerRating = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getResetPlayerRatingMutationOptions(options));
+    }
+
+export const getSetTierByUsernameUrl = () => {
+
+
+
+
+  return `/api/admin/set-tier-by-username`
+}
+
+/**
+ * @summary Set tier for player by username, creates player if not registered
+ */
+export const setTierByUsername = async (setTierByUsernameInput: SetTierByUsernameInput, options?: RequestInit): Promise<SetTierByUsernameResult> => {
+
+  return customFetch<SetTierByUsernameResult>(getSetTierByUsernameUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      setTierByUsernameInput,)
+  }
+);}
+
+
+
+
+export const getSetTierByUsernameMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setTierByUsername>>, TError,{data: BodyType<SetTierByUsernameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setTierByUsername>>, TError,{data: BodyType<SetTierByUsernameInput>}, TContext> => {
+
+const mutationKey = ['setTierByUsername'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setTierByUsername>>, {data: BodyType<SetTierByUsernameInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setTierByUsername(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetTierByUsernameMutationResult = NonNullable<Awaited<ReturnType<typeof setTierByUsername>>>
+    export type SetTierByUsernameMutationBody = BodyType<SetTierByUsernameInput>
+    export type SetTierByUsernameMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Set tier for player by username, creates player if not registered
+ */
+export const useSetTierByUsername = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setTierByUsername>>, TError,{data: BodyType<SetTierByUsernameInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setTierByUsername>>,
+        TError,
+        {data: BodyType<SetTierByUsernameInput>},
+        TContext
+      > => {
+      return useMutation(getSetTierByUsernameMutationOptions(options));
     }
 
 export const getChangePlayerTierUrl = (id: number,) => {

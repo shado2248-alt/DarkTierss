@@ -183,15 +183,17 @@ router.get("/leaderboard/overall", async (_req, res): Promise<void> => {
   // Get all gamemodes
   const gamemodes = await db.select().from(gamemodesTable).orderBy(gamemodesTable.id);
 
-  // Get ALL players (including those with no ratings yet)
+  // Get all players who have at least one rating with a tier assigned
   const rows = await db.execute<{
     player_id: number;
     username: string;
     uuid: string;
     region: string;
   }>(
-    sql`SELECT p.id AS player_id, p.username, p.uuid, p.region
+    sql`SELECT DISTINCT p.id AS player_id, p.username, p.uuid, p.region
         FROM players p
+        INNER JOIN player_ratings pr ON pr.player_id = p.id
+        WHERE pr.tier_id IS NOT NULL
         ORDER BY p.username`
   );
 

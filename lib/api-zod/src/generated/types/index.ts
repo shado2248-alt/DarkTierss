@@ -49,6 +49,8 @@ export * from './playerRating';
 export * from './playerUpdate';
 export * from './recentActivity';
 export * from './resetRatingInput';
+export * from './setTierByUsernameInput';
+export * from './setTierByUsernameResult';
 export * from './test';
 export * from './testInput';
 export * from './testList';

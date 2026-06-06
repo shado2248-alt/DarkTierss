@@ -846,6 +846,25 @@ export const ResetPlayerRatingResponse = zod.object({
 
 
 /**
+ * @summary Set tier for player by username, creates player if not registered
+ */
+export const SetTierByUsernameBody = zod.object({
+  "username": zod.string(),
+  "gamemodeId": zod.number(),
+  "tierId": zod.number()
+})
+
+export const SetTierByUsernameResponse = zod.object({
+  "playerId": zod.number(),
+  "username": zod.string(),
+  "gamemodeId": zod.number(),
+  "tierId": zod.number(),
+  "created": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
  * @summary Change player tier (admin)
  */
 export const ChangePlayerTierParams = zod.object({

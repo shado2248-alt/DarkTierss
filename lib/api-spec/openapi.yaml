@@ -850,6 +850,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/Player"
 
+  /admin/set-tier-by-username:
+    post:
+      operationId: setTierByUsername
+      tags: [admin]
+      summary: Set tier for player by username, creates player if not registered
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetTierByUsernameInput"
+      responses:
+        "200":
+          description: Tier set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetTierByUsernameResult"
+
   /admin/players/{id}/change-tier:
     post:
       operationId: changePlayerTier
@@ -1566,6 +1585,34 @@ components:
           type: integer
         newRating:
           type: integer
+
+    SetTierByUsernameInput:
+      type: object
+      required: [username, gamemodeId, tierId]
+      properties:
+        username:
+          type: string
+        gamemodeId:
+          type: integer
+        tierId:
+          type: integer
+
+    SetTierByUsernameResult:
+      type: object
+      required: [playerId, username, gamemodeId, tierId, created]
+      properties:
+        playerId:
+          type: integer
+        username:
+          type: string
+        gamemodeId:
+          type: integer
+        tierId:
+          type: integer
+        created:
+          type: boolean
+        message:
+          type: string
 
     ChangeTierInput:
       type: object

@@ -469,6 +469,21 @@ export interface ResetRatingInput {
   newRating?: number;
 }
 
+export interface SetTierByUsernameInput {
+  username: string;
+  gamemodeId: number;
+  tierId: number;
+}
+
+export interface SetTierByUsernameResult {
+  playerId: number;
+  username: string;
+  gamemodeId: number;
+  tierId: number;
+  created: boolean;
+  message?: string;
+}
+
 export interface ChangeTierInput {
   gamemodeId: number;
   tierId: number;

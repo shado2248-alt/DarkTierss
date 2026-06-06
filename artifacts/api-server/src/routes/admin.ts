@@ -146,6 +146,96 @@ router.get("/admin/analytics", async (req, res): Promise<void> => {
   });
 });
 
+// ── SET TIER BY USERNAME ────────────────────────────────────────────────────────
+router.post("/admin/set-tier-by-username", async (req, res): Promise<void> => {
+  const { username, gamemodeId, tierId } = req.body ?? {};
+
+  if (!username || typeof username !== "string" || username.trim().length < 2) {
+    res.status(400).json({ error: "Valid Minecraft username is required" }); return;
+  }
+  if (!gamemodeId || isNaN(Number(gamemodeId))) {
+    res.status(400).json({ error: "gamemodeId is required" }); return;
+  }
+  if (!tierId || isNaN(Number(tierId))) {
+    res.status(400).json({ error: "tierId is required" }); return;
+  }
+
+  const trimmed = username.trim();
+  const gmId = Number(gamemodeId);
+  const tId = Number(tierId);
+
+  // Get the tier to know its minRating
+  const [tier] = await db.select().from(tiersTable).where(eq(tiersTable.id, tId));
+  if (!tier) { res.status(404).json({ error: "Tier not found" }); return; }
+
+  // Find or create player
+  const allPlayers = await db.select().from(playersTable);
+  let player = allPlayers.find(p => p.username.toLowerCase() === trimmed.toLowerCase());
+  let created = false;
+
+  if (!player) {
+    // Auto-fetch UUID from Mojang
+    let uuid: string;
+    try {
+      const mojang = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(trimmed)}`);
+      if (mojang.ok) {
+        const d = (await mojang.json()) as { id: string; name: string };
+        const id = d.id;
+        uuid = `${id.slice(0,8)}-${id.slice(8,12)}-${id.slice(12,16)}-${id.slice(16,20)}-${id.slice(20)}`;
+      } else {
+        uuid = crypto.randomUUID();
+      }
+    } catch {
+      uuid = crypto.randomUUID();
+    }
+
+    [player] = await db.insert(playersTable).values({
+      username: trimmed,
+      uuid,
+      region: "NA",
+    }).returning();
+    created = true;
+  }
+
+  // Find or create player_rating for this gamemode
+  const [existing] = await db.select().from(playerRatingsTable)
+    .where(and(eq(playerRatingsTable.playerId, player.id), eq(playerRatingsTable.gamemodeId, gmId)));
+
+  if (existing) {
+    // Record promotion if tier changed
+    if (existing.tierId !== tId) {
+      await db.insert(tierPromotionsTable).values({
+        playerId: player.id, gamemodeId: gmId, fromTierId: existing.tierId, toTierId: tId,
+      });
+    }
+    await db.update(playerRatingsTable)
+      .set({ tierId: tId, rating: tier.minRating, peakRating: Math.max(existing.peakRating ?? 0, tier.minRating) })
+      .where(and(eq(playerRatingsTable.playerId, player.id), eq(playerRatingsTable.gamemodeId, gmId)));
+  } else {
+    await db.insert(playerRatingsTable).values({
+      playerId: player.id,
+      gamemodeId: gmId,
+      tierId: tId,
+      rating: tier.minRating,
+      peakRating: tier.minRating,
+      wins: 0,
+      losses: 0,
+      totalMatches: 0,
+    });
+  }
+
+  res.json({
+    playerId: player.id,
+    username: player.username,
+    gamemodeId: gmId,
+    tierId: tId,
+    created,
+    message: created
+      ? `Player "${player.username}" was created and placed in ${tier.name}`
+      : `Player "${player.username}" has been placed in ${tier.name}`,
+  });
+});
+
 // ── PLAYERS ────────────────────────────────────────────────────────────────────
 router.post("/admin/players/:id/reset-rating", async (req, res): Promise<void> => {
   const params = ResetPlayerRatingParams.safeParse(req.params);
