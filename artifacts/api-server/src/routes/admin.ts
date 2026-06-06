@@ -75,8 +75,28 @@ router.patch("/admin/users/:id", async (req, res): Promise<void> => {
   const parsed = UpdateUserBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
+  const session = req.session as any;
+  let requesterRole = "user";
+  if (session?.userId) {
+    const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, session.userId));
+    if (me) requesterRole = me.role;
+  }
+
   const updates: Record<string, unknown> = {};
-  if (parsed.data.role != null) updates.role = parsed.data.role;
+
+  if (parsed.data.role != null) {
+    const targetRole = parsed.data.role as string;
+    if (requesterRole === "owner") {
+      updates.role = targetRole;
+    } else if (requesterRole === "admin") {
+      if (!["user", "tester"].includes(targetRole)) {
+        res.status(403).json({ error: "Admins can only assign user or tester roles" }); return;
+      }
+      updates.role = targetRole;
+    } else {
+      res.status(403).json({ error: "You do not have permission to change roles" }); return;
+    }
+  }
   if (parsed.data.isSuspended != null) updates.isSuspended = parsed.data.isSuspended;
   if (parsed.data.playerId != null) updates.playerId = parsed.data.playerId;
 

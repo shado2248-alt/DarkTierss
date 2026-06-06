@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useGetStats, useGetRecentActivity, useGetLeaderboard, useListTests, useListMatches } from "@workspace/api-client-react";
+import { useGetStats, useGetRecentActivity, useGetLeaderboard } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { TierBadge } from "../components/ui/tier-badge";
 import { motion, useInView, AnimatePresence } from "framer-motion";
-import { ChevronRight, Zap, Shield, Swords, Star, Trophy, Users } from "lucide-react";
+import { ChevronRight, Zap, Shield, Swords, Star, Trophy, Users, MessageCircle } from "lucide-react";
 
 const EASE = [0.25, 0.1, 0.25, 1] as const;
 
@@ -101,26 +101,6 @@ const GM_ICON: Record<string, React.ReactNode> = {
   mace:    <Swords className="w-5 h-5" />,
 };
 
-/* ─── Status badge ───────────────────────────────────────── */
-function StatusPill({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    pending:     "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-    approved:    "bg-green-500/15 text-green-400 border-green-500/30",
-    rejected:    "bg-red-500/15 text-red-400 border-red-500/30",
-    in_progress: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-    accepted:    "bg-purple-500/15 text-purple-400 border-purple-500/30",
-  };
-  const labels: Record<string, string> = {
-    pending: "Pending", approved: "Approved", rejected: "Rejected",
-    in_progress: "In Progress", accepted: "Accepted",
-  };
-  return (
-    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${map[status] ?? "bg-white/10 text-white border-white/20"}`}>
-      {labels[status] ?? status}
-    </span>
-  );
-}
-
 /* ─── Reveal wrapper ─────────────────────────────────────── */
 function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const ref = useRef(null);
@@ -138,12 +118,8 @@ export default function Home() {
   const { data: stats }        = useGetStats();
   const { data: activity }     = useGetRecentActivity();
   const { data: leaderboard }  = useGetLeaderboard({ limit: 5 });
-  const { data: testsData }    = useListTests({ limit: 6 });
-  const { data: matchesData }  = useListMatches({ limit: 8 });
 
-  const recentMatches  = activity?.recentMatches ?? [];
-  const htMatches      = matchesData?.matches ?? [];
-  const liveTests      = testsData?.tests ?? [];
+  const recentMatches = activity?.recentMatches ?? [];
 
   return (
     <div className="min-h-screen text-foreground overflow-x-hidden">
@@ -207,6 +183,11 @@ export default function Home() {
               <a href="https://discord.gg/mWHwDR8bg7" target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-2 bg-[#5865F2]/90 hover:bg-[#5865F2] text-white px-6 py-3 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(88,101,242,0.4)]">
                 Apply for Testing
+              </a>
+              <a href="https://discord.gg/mWHwDR8bg7" target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-2 border border-[#5865F2]/50 text-[#7289da] hover:bg-[#5865F2]/10 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5">
+                <MessageCircle className="w-4 h-4" />
+                Join Discord
               </a>
             </motion.div>
 
@@ -294,137 +275,6 @@ export default function Home() {
         </div>
         <Marquee matches={recentMatches} />
       </div>
-
-      {/* ══ HIGH TIER RESULTS ═══════════════════════════════════ */}
-      <section className="max-w-7xl mx-auto px-4 py-16">
-        <div className="flex items-end justify-between mb-8">
-          <Reveal>
-            <SectionHead label="Featured" title="High Tier Results" sub="Latest match results from our platform" />
-          </Reveal>
-          <Link href="/matches" className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 flex-shrink-0 mb-1">
-            View All <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {htMatches.length > 0 ? htMatches.map((match, i) => {
-            const winner = match.winnerId === match.player1Id ? match.player1Name : match.player2Name;
-            const loser  = match.winnerId === match.player1Id ? match.player2Name : match.player1Name;
-            const winnerId = match.winnerId === match.player1Id ? match.player1Id : match.player2Id;
-            const loserId  = match.winnerId === match.player1Id ? match.player2Id : match.player1Id;
-            const change = Math.abs(match.ratingChange ?? 0);
-            return (
-              <Reveal key={match.id} delay={i * 0.04}>
-                <div className="glass-card border border-white/10 hover:border-primary/35 transition-colors duration-300 rounded-2xl overflow-hidden h-full">
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-3.5 py-2 bg-black/30 border-b border-white/5">
-                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-primary/15 text-primary border border-primary/25">
-                      {match.gamemodeName}
-                    </span>
-                    {match.score && <span className="text-[10px] font-mono text-muted-foreground/60">{match.score}</span>}
-                  </div>
-                  {/* Body */}
-                  <div className="px-3.5 py-3 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <img src={`https://mc-heads.net/avatar/${encodeURIComponent(winner)}/28`} alt={winner}
-                        className="w-7 h-7 rounded-md bg-black flex-shrink-0"
-                        onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }} />
-                      <Link href={`/players/${winnerId}`} className="flex-1 text-xs font-black text-green-400 hover:text-green-300 transition-colors truncate">
-                        {winner}
-                      </Link>
-                      <span className="text-[9px] font-black bg-green-500/15 text-green-400 border border-green-500/25 px-1.5 py-0.5 rounded flex-shrink-0">WIN</span>
-                      {change > 0 && <span className="text-[10px] font-black text-green-400 font-mono flex-shrink-0">+{change}</span>}
-                    </div>
-                    <div className="h-px bg-white/5 mx-1" />
-                    <div className="flex items-center gap-2">
-                      <img src={`https://mc-heads.net/avatar/${encodeURIComponent(loser)}/28`} alt={loser}
-                        className="w-7 h-7 rounded-md bg-black opacity-60 flex-shrink-0"
-                        onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }} />
-                      <Link href={`/players/${loserId}`} className="flex-1 text-xs text-red-400/70 hover:text-red-300 transition-colors truncate">
-                        {loser}
-                      </Link>
-                      <span className="text-[9px] font-black bg-red-500/15 text-red-400 border border-red-500/25 px-1.5 py-0.5 rounded flex-shrink-0">LOSS</span>
-                      {change > 0 && <span className="text-[10px] font-black text-red-400 font-mono flex-shrink-0">-{change}</span>}
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-            );
-          }) : Array.from({ length: 4 }).map((_, i) => (
-            <Reveal key={i} delay={i * 0.04}>
-              <div className="glass-card border border-white/8 rounded-2xl h-28 flex items-center justify-center text-muted-foreground/40 text-xs">
-                No matches yet
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-4"><div className="h-px bg-white/6" /></div>
-
-      {/* ══ LIVE TEST RESULTS ═══════════════════════════════════ */}
-      <section className="max-w-7xl mx-auto px-4 py-16">
-        <div className="flex items-end justify-between mb-8">
-          <Reveal>
-            <SectionHead
-              label="Live Feed"
-              title="Live Test Results"
-              sub="Feed of all tier test results"
-            />
-          </Reveal>
-          <Link href="/tests" className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1 flex-shrink-0 mb-1">
-            View All <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {liveTests.length > 0 ? liveTests.map((test, i) => (
-            <Reveal key={test.id} delay={i * 0.05}>
-              <div className="glass-card border border-white/10 hover:border-primary/35 rounded-2xl overflow-hidden transition-colors duration-300">
-                <div className="flex items-center justify-between px-4 py-2 bg-black/30 border-b border-white/5">
-                  <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-primary/15 text-primary border border-primary/25">
-                    {test.gamemodeName}
-                  </span>
-                  <StatusPill status={test.status} />
-                </div>
-                <div className="flex items-center gap-3 px-4 py-3.5">
-                  <img src={`https://mc-heads.net/body/${encodeURIComponent(test.playerName)}/48`}
-                    alt={test.playerName}
-                    className="h-12 w-auto object-contain flex-shrink-0 drop-shadow"
-                    onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${encodeURIComponent(test.playerName)}/40`; }} />
-                  <div className="flex-1 min-w-0">
-                    <Link href={`/players/${test.playerId}`} className="font-black text-sm text-white hover:text-primary transition-colors truncate block">
-                      {test.playerName}
-                    </Link>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      Requesting <span className="text-primary font-bold">{test.requestedTier}</span>
-                    </div>
-                    {test.testerName && (
-                      <div className="text-[10px] text-muted-foreground/50 mt-0.5">
-                        Tester: <span className="text-white/50">{test.testerName}</span>
-                      </div>
-                    )}
-                  </div>
-                  {test.result && (
-                    <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border flex-shrink-0
-                      ${test.result === "pass" ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-red-500/15 text-red-400 border-red-500/30"}`}>
-                      {test.result === "pass" ? "PASS" : "FAIL"}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </Reveal>
-          )) : Array.from({ length: 3 }).map((_, i) => (
-            <Reveal key={i} delay={i * 0.05}>
-              <div className="glass-card border border-white/8 rounded-2xl h-24 flex items-center justify-center text-muted-foreground/40 text-xs">
-                No tests yet
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-4"><div className="h-px bg-white/6" /></div>
 
       {/* ══ HOW IT WORKS ════════════════════════════════════════ */}
       <section className="max-w-7xl mx-auto px-4 py-16">

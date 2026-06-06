@@ -35,13 +35,12 @@ function Router() {
     <div className="min-h-[100dvh] bg-background text-foreground flex flex-col font-sans">
       <Navbar />
       <main className="flex-1 flex flex-col">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           <motion.div
             key={location}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.18 }}
             className="flex-1 flex flex-col"
           >
             <Switch>

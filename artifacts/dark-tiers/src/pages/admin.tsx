@@ -23,19 +23,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type AdminTab = "overview" | "users" | "players" | "matches" | "tests" | "announcements" | "gamemodes" | "tiers";
 
-const ROLES = ["user", "tester", "moderator", "admin", "owner"];
 const COLORS = ["#8b5cf6", "#6366f1", "#f97316", "#22c55e", "#ec4899", "#14b8a6", "#f43f5e", "#a855f7", "#06b6d4", "#84cc16"];
 
-const tabList: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
-  { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: "users", label: "Users", icon: <Users className="w-4 h-4" /> },
-  { id: "players", label: "Players", icon: <ShieldCheck className="w-4 h-4" /> },
-  { id: "matches", label: "Matches", icon: <Swords className="w-4 h-4" /> },
-  { id: "tests", label: "Tests", icon: <CheckCircle className="w-4 h-4" /> },
-  { id: "announcements", label: "News", icon: <Megaphone className="w-4 h-4" /> },
-  { id: "gamemodes", label: "Gamemodes", icon: <Gamepad2 className="w-4 h-4" /> },
-  { id: "tiers", label: "Tiers", icon: <Layers className="w-4 h-4" /> },
+function rolesFor(myRole: string): string[] {
+  if (myRole === "owner") return ["user", "tester", "moderator", "admin", "owner"];
+  if (myRole === "admin") return ["user", "tester"];
+  return [];
+}
+
+const ALL_TABS: { id: AdminTab; label: string; icon: React.ReactNode; minRole: string }[] = [
+  { id: "overview",      label: "Overview",   icon: <LayoutDashboard className="w-4 h-4" />, minRole: "admin" },
+  { id: "users",         label: "Users",      icon: <Users className="w-4 h-4" />,           minRole: "admin" },
+  { id: "players",       label: "Players",    icon: <ShieldCheck className="w-4 h-4" />,     minRole: "admin" },
+  { id: "matches",       label: "Matches",    icon: <Swords className="w-4 h-4" />,          minRole: "tester" },
+  { id: "tests",         label: "Tests",      icon: <CheckCircle className="w-4 h-4" />,     minRole: "tester" },
+  { id: "announcements", label: "News",       icon: <Megaphone className="w-4 h-4" />,       minRole: "tester" },
+  { id: "gamemodes",     label: "Gamemodes",  icon: <Gamepad2 className="w-4 h-4" />,        minRole: "admin" },
+  { id: "tiers",         label: "Tiers",      icon: <Layers className="w-4 h-4" />,          minRole: "admin" },
 ];
+
+const ROLE_RANK: Record<string, number> = { user: 0, tester: 1, moderator: 2, admin: 3, owner: 4 };
+function hasAccess(myRole: string, minRole: string) {
+  return (ROLE_RANK[myRole] ?? 0) >= (ROLE_RANK[minRole] ?? 99);
+}
 
 function StatCard({ label, value, color, sub }: { label: string; value: any; color?: string; sub?: string }) {
   return (
@@ -153,10 +163,11 @@ function OverviewTab() {
 }
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
-function UsersTab() {
+function UsersTab({ myRole }: { myRole: string }) {
   const [search, setSearch] = useState("");
   const { data, refetch } = useListUsers({ search: search || undefined, limit: 50 });
   const updateUser = useUpdateUser();
+  const availableRoles = rolesFor(myRole);
 
   const handleRole = async (id: number, role: string) => { await updateUser.mutateAsync({ id, data: { role: role as any } }); refetch(); };
   const handleSuspend = async (id: number, isSuspended: boolean) => { await updateUser.mutateAsync({ id, data: { isSuspended } }); refetch(); };
@@ -183,10 +194,14 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{(user as any).email ?? "-"}</td>
                   <td className="px-4 py-3">
-                    <Select value={user.role} onValueChange={v => handleRole(user.id, v)}>
-                      <SelectTrigger className="h-7 text-xs w-28 bg-black/40 border-white/10 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent>{ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
-                    </Select>
+                    {availableRoles.length > 0 ? (
+                      <Select value={user.role} onValueChange={v => handleRole(user.id, v)}>
+                        <SelectTrigger className="h-7 text-xs w-28 bg-black/40 border-white/10 text-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>{availableRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">{user.role}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${user.isSuspended ? "bg-red-500/15 text-red-400 border-red-500/30" : "bg-green-500/15 text-green-400 border-green-500/30"}`}>
@@ -195,10 +210,12 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(user.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-right">
-                    <Button size="sm" variant="ghost" onClick={() => handleSuspend(user.id, !user.isSuspended)}
-                      className={`text-xs h-7 ${user.isSuspended ? "text-green-400 hover:text-green-300" : "text-red-400 hover:text-red-300"}`}>
-                      {user.isSuspended ? "Unsuspend" : "Suspend"}
-                    </Button>
+                    {myRole === "owner" || myRole === "admin" ? (
+                      <Button size="sm" variant="ghost" onClick={() => handleSuspend(user.id, !user.isSuspended)}
+                        className={`text-xs h-7 ${user.isSuspended ? "text-green-400 hover:text-green-300" : "text-red-400 hover:text-red-300"}`}>
+                        {user.isSuspended ? "Unsuspend" : "Suspend"}
+                      </Button>
+                    ) : null}
                   </td>
                 </tr>
               ))}
@@ -779,20 +796,41 @@ function TiersTab() {
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 export default function Admin() {
   const { data: user, isLoading } = useGetMe();
-  const [tab, setTab] = useState<AdminTab>("overview");
+  const myRole = (user as any)?.role ?? "user";
+  const tabList = ALL_TABS.filter(t => hasAccess(myRole, t.minRole));
+  const defaultTab = tabList[0]?.id ?? "matches";
+  const [tab, setTab] = useState<AdminTab>(defaultTab);
 
   if (isLoading) return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>;
-  if (!user || (user.role !== "admin" && user.role !== "owner")) return <Redirect to="/" />;
+  if (!user || !hasAccess(myRole, "tester")) return <Redirect to="/" />;
+
+  const panelTitle =
+    myRole === "owner" ? "Owner Panel" :
+    myRole === "admin" ? "Admin Panel" :
+    "Staff Panel";
+
+  const panelSub =
+    myRole === "owner" ? "Full platform control — manage staff, players, and all content." :
+    myRole === "admin" ? "Manage players, matches, tests, and promote testers." :
+    "Post match results, manage tier tests, and write announcements.";
 
   return (
     <div className="flex-1 flex flex-col items-center py-8">
       <div className="w-full max-w-7xl px-4 flex flex-col gap-5">
 
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-300 to-violet-500">
-            Admin Dashboard
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">Full platform management and control.</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-300 to-violet-500">
+              {panelTitle}
+            </h1>
+            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border
+              ${myRole === "owner" ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/30"
+              : myRole === "admin" ? "text-red-400 bg-red-500/10 border-red-500/30"
+              : "text-violet-400 bg-violet-500/10 border-violet-500/30"}`}>
+              {myRole}
+            </span>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">{panelSub}</p>
         </motion.div>
 
         {/* Tab bar */}
@@ -812,7 +850,7 @@ export default function Admin() {
         {/* Content */}
         <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
           {tab === "overview" && <OverviewTab />}
-          {tab === "users" && <UsersTab />}
+          {tab === "users" && <UsersTab myRole={myRole} />}
           {tab === "players" && <PlayersTab />}
           {tab === "matches" && <MatchesTab />}
           {tab === "tests" && <TestsTab />}

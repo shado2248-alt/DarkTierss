@@ -161,11 +161,11 @@ export default function Profile() {
             </div>
 
             {/* Email (read-only) */}
-            {user.email && (
+            {(user as any).email && (
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email</Label>
                 <Input
-                  value={user.email}
+                  value={(user as any).email}
                   readOnly
                   className="bg-white/4 border-white/10 text-white/50 cursor-not-allowed"
                 />

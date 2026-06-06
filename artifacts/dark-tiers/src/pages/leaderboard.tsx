@@ -175,23 +175,38 @@ function TierColumn({
       </div>
       {/* Player list */}
       <div className="divide-y divide-white/[0.04]">
-        {entries.map(entry => (
-          <div key={entry.playerId} className="flex items-center gap-2 px-3 py-2 hover:bg-white/[0.03] transition-colors">
-            <img
-              src={`https://mc-heads.net/avatar/${entry.uuid}/20`}
-              alt={entry.username}
-              className="w-5 h-5 rounded flex-shrink-0"
-              onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/20"; }}
-            />
-            <Link
-              href={`/players/${entry.playerId}`}
-              className="text-[13px] font-semibold text-white/85 hover:text-primary transition-colors truncate flex-1"
+        {entries.map(entry => {
+          const isHT = entry.tierName?.startsWith("HT") ?? false;
+          const isLT = entry.tierName?.startsWith("LT") ?? false;
+          return (
+            <div
+              key={entry.playerId}
+              className={`flex items-center gap-2 px-3 py-2 hover:bg-white/[0.03] transition-colors border-l-2
+                ${isHT ? "border-green-500/60" : isLT ? "border-red-500/60" : "border-transparent"}`}
             >
-              {entry.username}
-            </Link>
-            {entry.region && <RegionBadge region={entry.region} />}
-          </div>
-        ))}
+              <img
+                src={`https://mc-heads.net/avatar/${entry.uuid}/20`}
+                alt={entry.username}
+                className="w-5 h-5 rounded flex-shrink-0"
+                onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/20"; }}
+              />
+              <Link
+                href={`/players/${entry.playerId}`}
+                className={`text-[13px] font-semibold hover:text-primary transition-colors truncate flex-1
+                  ${isHT ? "text-green-300" : isLT ? "text-red-300" : "text-white/85"}`}
+              >
+                {entry.username}
+              </Link>
+              {entry.tierName && (
+                <span className={`text-[9px] font-black flex-shrink-0 px-1 py-0.5 rounded
+                  ${isHT ? "text-green-400 bg-green-500/10" : isLT ? "text-red-400 bg-red-500/10" : "text-white/40"}`}>
+                  {entry.tierName}
+                </span>
+              )}
+              {entry.region && <RegionBadge region={entry.region} />}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
