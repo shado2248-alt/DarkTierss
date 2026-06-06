@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { GamemodeIcon } from "@/lib/gamemode-icons";
 
 type OverallPlayer = {
   rank: number;
@@ -79,14 +80,14 @@ export default function Players() {
       <div className="w-full max-w-screen-xl px-4 flex flex-col gap-0">
 
         {/* Header row */}
-        <div className="flex items-end justify-between pb-1">
+        <div className="flex items-end justify-between mb-4">
           <div>
-            <h1 className="text-xl font-black text-white tracking-tight">Players</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <h1 className="text-2xl font-black text-white tracking-tight">Players</h1>
+            <p className="text-xs text-muted-foreground mt-1">
               {data ? `${data.total} registered competitors` : "Browse all registered players."}
             </p>
           </div>
-          <div className="relative w-48 flex-shrink-0">
+          <div className="relative w-52 flex-shrink-0">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Search players..."
@@ -97,7 +98,15 @@ export default function Players() {
           </div>
         </div>
 
-        {/* Card (no tabs — single view) */}
+        {/* Single tab (all players) */}
+        <div className="flex items-end gap-0">
+          <button className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-card border border-border/60 border-b-0 rounded-t-xl -mb-px z-10">
+            <span className="text-base leading-none">👥</span>
+            <span>All Players</span>
+          </button>
+        </div>
+
+        {/* Card */}
         <AnimatePresence mode="wait">
           <motion.div
             key="players-table"
@@ -105,18 +114,18 @@ export default function Players() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.12 }}
-            className="border border-border/50 bg-card rounded-xl overflow-hidden"
+            className="border border-border/60 bg-card rounded-b-xl rounded-tr-xl overflow-hidden"
           >
             {isLoading ? (
-              <div className="p-4 space-y-1.5">
+              <div className="p-4 space-y-2">
                 {Array.from({ length: 14 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 bg-white/4 rounded-lg" />
+                  <Skeleton key={i} className="h-11 bg-white/4 rounded-lg" />
                 ))}
               </div>
             ) : filtered.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-max">
-                  <thead className="border-b border-white/8">
+                  <thead className="border-b border-white/8 bg-white/[0.02]">
                     <tr>
                       <Th center>#</Th>
                       <Th>Player</Th>
@@ -138,41 +147,42 @@ export default function Players() {
                         : 0;
 
                       return (
-                        <tr key={player.playerId} className="border-b border-white/5 hover:bg-white/3 transition-colors">
-                          <td className="px-3 py-2.5 w-10 text-center">
+                        <tr key={player.playerId} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
+                          <td className="px-3 py-3 w-10 text-center">
                             <RankNum rank={player.rank} />
                           </td>
-                          <td className="px-3 py-2.5 min-w-[180px]">
+                          <td className="px-3 py-3 min-w-[200px]">
                             <div className="flex items-center gap-2.5">
                               <img
-                                src={`https://mc-heads.net/body/${player.uuid}/48`}
+                                src={`https://mc-heads.net/avatar/${player.uuid}/28`}
                                 alt={player.username}
-                                className="h-9 w-auto object-contain flex-shrink-0 drop-shadow"
-                                onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${player.uuid}/28`; }}
+                                className="w-7 h-7 rounded flex-shrink-0"
+                                onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }}
                               />
                               <Link href={`/players/${player.playerId}`}
-                                className="font-bold text-sm text-white/90 hover:text-primary transition-colors">
+                                className="font-bold text-sm text-white hover:text-primary transition-colors">
                                 {player.username}
                               </Link>
                             </div>
                           </td>
-                          <td className="px-3 py-2.5">
+                          <td className="px-3 py-3">
                             <RegionBadge region={player.region} />
                           </td>
-                          <td className="px-3 py-2.5 text-center">
+                          <td className="px-3 py-3 text-center">
                             <span className="text-xs text-muted-foreground tabular-nums">{player.rankedGamemodes}</span>
                           </td>
-                          <td className="px-3 py-2.5">
-                            {bestMode?.tierName
-                              ? (
-                                <div className="flex items-center gap-2">
-                                  <TierBadge tierName={bestMode.tierName} tierColor={bestMode.tierColor} />
+                          <td className="px-3 py-3">
+                            {bestMode?.tierName ? (
+                              <div className="flex items-center gap-2">
+                                <TierBadge tierName={bestMode.tierName} tierColor={bestMode.tierColor} />
+                                <div className="flex items-center gap-1">
+                                  <GamemodeIcon name={bestMode.gamemodeName} size={14} />
                                   <span className="text-[10px] text-muted-foreground/50">{bestMode.gamemodeName}</span>
                                 </div>
-                              )
-                              : <span className="text-xs text-muted-foreground/40">Unranked</span>}
+                              </div>
+                            ) : <span className="text-xs text-muted-foreground/40">Unranked</span>}
                           </td>
-                          <td className="px-3 py-2.5 text-right pr-5">
+                          <td className="px-4 py-3 text-right">
                             <span className={`font-black text-sm font-mono tabular-nums ${player.rank <= 3 ? "text-primary" : "text-white/70"}`}>
                               {bestElo > 0 ? bestElo : "—"}
                             </span>

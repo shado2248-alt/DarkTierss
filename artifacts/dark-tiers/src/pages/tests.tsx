@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { Search } from "lucide-react";
+import { GamemodeIcon } from "@/lib/gamemode-icons";
 
 type Status = "all" | "pending" | "in_progress" | "approved" | "rejected" | "accepted" | "cancelled";
 
@@ -57,8 +58,6 @@ export default function Tests() {
     limit: 100,
   });
 
-  /* ── Tab sets ── */
-  const statusTabs = STATUS_TABS;
   const gamemodeTabs = [
     { id: null as number | null, label: "All Modes" },
     ...(gamemodes?.map(g => ({ id: g.id, label: g.name })) ?? []),
@@ -68,10 +67,8 @@ export default function Tests() {
     !search || t.playerName.toLowerCase().includes(search.toLowerCase())
   );
 
-  const activeStatusIdx = statusTabs.findIndex(t => t.id === statusFilter);
-  const activeGmIdx     = gamemodeTabs.findIndex(t => t.id === gamemodeId);
+  const activeStatusIdx = STATUS_TABS.findIndex(t => t.id === statusFilter);
 
-  /* ── Summary counts ── */
   const all = data?.tests ?? [];
   const counts: Record<string, number> = {};
   all.forEach(t => { counts[t.status] = (counts[t.status] ?? 0) + 1; });
@@ -81,16 +78,16 @@ export default function Tests() {
       <div className="w-full max-w-screen-xl px-4 flex flex-col gap-0">
 
         {/* Header */}
-        <div className="flex items-end justify-between pb-3">
+        <div className="flex items-end justify-between mb-4">
           <div>
-            <h1 className="text-xl font-black text-white tracking-tight">Tier Testers</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <h1 className="text-2xl font-black text-white tracking-tight">Tier Tests</h1>
+            <p className="text-xs text-muted-foreground mt-1">
               {data
                 ? `${data.total} test${data.total !== 1 ? "s" : ""} · ${counts["pending"] ?? 0} pending`
                 : "Active and recent tier test requests."}
             </p>
           </div>
-          <div className="relative w-48 flex-shrink-0">
+          <div className="relative w-52 flex-shrink-0">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Search player..."
@@ -101,163 +98,154 @@ export default function Tests() {
           </div>
         </div>
 
-        {/* Dual tab rows: status (primary) + gamemode (secondary) */}
-        <div className="flex flex-col gap-0">
-          {/* Status tabs */}
-          <div className="flex items-end gap-0 overflow-x-auto scrollbar-none">
-            {statusTabs.map(tab => {
-              const active = statusFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setStatusFilter(tab.id)}
-                  className={`relative flex-shrink-0 px-5 py-2.5 text-xs font-bold whitespace-nowrap transition-colors
-                    ${active
-                      ? "text-white border border-border/50 border-b-0 rounded-t-lg -mb-px z-10 bg-card"
-                      : "text-muted-foreground hover:text-white/80"}`}
-                >
-                  {tab.label}
-                  {tab.id !== "all" && counts[tab.id] != null && (
-                    <span className="ml-1.5 text-[9px] font-black text-muted-foreground/60">
-                      {counts[tab.id]}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Card with gamemode sub-tabs inside */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${statusFilter}-${gamemodeId}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}
-              className={`border border-border/50 bg-card rounded-xl overflow-hidden
-                ${activeStatusIdx === 0 ? "rounded-tl-none" : ""}`}
-            >
-              {/* Gamemode sub-tabs inside card header */}
-              <div className="flex items-center gap-0 border-b border-white/6 overflow-x-auto scrollbar-none px-0">
-                {gamemodeTabs.map(tab => {
-                  const active = gamemodeId === tab.id;
-                  return (
-                    <button
-                      key={tab.id ?? "all"}
-                      onClick={() => setGamemodeId(tab.id)}
-                      className={`flex-shrink-0 px-4 py-2.5 text-[11px] font-bold whitespace-nowrap transition-colors border-b-2 -mb-px
-                        ${active
-                          ? "text-primary border-primary"
-                          : "text-muted-foreground hover:text-white/70 border-transparent"}`}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Table */}
-              {isLoading ? (
-                <div className="p-4 space-y-1.5">
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 bg-white/4 rounded-lg" />
-                  ))}
-                </div>
-              ) : filtered.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-max">
-                    <thead className="border-b border-white/8">
-                      <tr>
-                        <Th center>#</Th>
-                        <Th>Player</Th>
-                        <Th>Mode</Th>
-                        <Th>Requesting</Th>
-                        <Th>Status</Th>
-                        <Th>Tester</Th>
-                        <Th center>Result</Th>
-                        <Th right>Date</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map((test, i) => (
-                        <tr key={test.id} className="border-b border-white/5 hover:bg-white/3 transition-colors">
-                          {/* # */}
-                          <td className="px-3 py-2.5 w-10 text-center">
-                            <span className="text-xs font-semibold text-muted-foreground/50 tabular-nums">{i + 1}</span>
-                          </td>
-
-                          {/* Player */}
-                          <td className="px-3 py-2.5 min-w-[160px]">
-                            <div className="flex items-center gap-2">
-                              <img
-                                src={`https://mc-heads.net/avatar/${encodeURIComponent(test.playerName)}/24`}
-                                alt={test.playerName}
-                                className="w-6 h-6 rounded-md bg-black flex-shrink-0"
-                                onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/24"; }}
-                              />
-                              <Link href={`/players/${test.playerId}`}
-                                className="font-bold text-sm text-white/90 hover:text-primary transition-colors">
-                                {test.playerName}
-                              </Link>
-                            </div>
-                          </td>
-
-                          {/* Mode */}
-                          <td className="px-3 py-2.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-primary/15 text-primary border border-primary/25">
-                              {test.gamemodeName}
-                            </span>
-                          </td>
-
-                          {/* Requesting tier */}
-                          <td className="px-3 py-2.5">
-                            <span className="text-sm font-black text-primary">{test.requestedTier}</span>
-                          </td>
-
-                          {/* Status */}
-                          <td className="px-3 py-2.5">
-                            <StatusBadge status={test.status} />
-                          </td>
-
-                          {/* Tester */}
-                          <td className="px-3 py-2.5">
-                            {test.testerName
-                              ? <span className="text-xs text-white/60 font-semibold">{test.testerName}</span>
-                              : <span className="text-muted-foreground/30 text-xs">Unassigned</span>}
-                          </td>
-
-                          {/* Result */}
-                          <td className="px-3 py-2.5 text-center">
-                            {test.result ? (
-                              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border
-                                ${test.result === "pass"
-                                  ? "bg-green-500/15 text-green-400 border-green-500/30"
-                                  : "bg-red-500/15 text-red-400 border-red-500/30"}`}>
-                                {test.result === "pass" ? "PASS" : "FAIL"}
-                              </span>
-                            ) : <span className="text-muted-foreground/25 text-xs">—</span>}
-                          </td>
-
-                          {/* Date */}
-                          <td className="px-3 py-2.5 text-right pr-5">
-                            <span className="text-[10px] text-muted-foreground/60 tabular-nums">
-                              {format(new Date(test.createdAt), "MMM d, yyyy")}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="py-20 text-center text-sm text-muted-foreground">
-                  No {statusFilter !== "all" ? statusFilter.replace("_", " ") : ""} tier tests found.
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
+        {/* Status tabs (top row) */}
+        <div className="flex items-end gap-0 overflow-x-auto scrollbar-none">
+          {STATUS_TABS.map(tab => {
+            const active = statusFilter === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`relative flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold whitespace-nowrap transition-all
+                  ${active
+                    ? "text-white bg-card border border-border/60 border-b-0 rounded-t-xl -mb-px z-10"
+                    : "text-muted-foreground hover:text-white/80 hover:bg-white/5 rounded-t-xl"
+                  }`}
+              >
+                <span>{tab.label}</span>
+                {tab.id !== "all" && counts[tab.id] != null && (
+                  <span className="text-[9px] font-black text-muted-foreground/60 bg-white/10 px-1.5 py-0.5 rounded-full">
+                    {counts[tab.id]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
+
+        {/* Card */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${statusFilter}-${gamemodeId}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className={`border border-border/60 bg-card overflow-hidden
+              ${activeStatusIdx === 0 ? "rounded-b-xl rounded-tr-xl" : "rounded-xl"}`}
+          >
+            {/* Gamemode sub-tabs with icons inside card */}
+            <div className="flex items-center gap-0 border-b border-white/6 overflow-x-auto scrollbar-none">
+              {gamemodeTabs.map(tab => {
+                const active = gamemodeId === tab.id;
+                return (
+                  <button
+                    key={tab.id ?? "all"}
+                    onClick={() => setGamemodeId(tab.id)}
+                    className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-bold whitespace-nowrap transition-colors border-b-2 -mb-px
+                      ${active
+                        ? "text-primary border-primary"
+                        : "text-muted-foreground hover:text-white/70 border-transparent"}`}
+                  >
+                    {tab.id !== null && <GamemodeIcon name={tab.label} size={16} />}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {isLoading ? (
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <Skeleton key={i} className="h-11 bg-white/4 rounded-lg" />
+                ))}
+              </div>
+            ) : filtered.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-max">
+                  <thead className="border-b border-white/8 bg-white/[0.02]">
+                    <tr>
+                      <Th center>#</Th>
+                      <Th>Player</Th>
+                      <Th>Mode</Th>
+                      <Th>Requesting</Th>
+                      <Th>Status</Th>
+                      <Th>Tester</Th>
+                      <Th center>Result</Th>
+                      <Th right>Date</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((test, i) => (
+                      <tr key={test.id} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
+                        <td className="px-3 py-3 w-10 text-center">
+                          <span className="text-xs font-semibold text-muted-foreground/50 tabular-nums">{i + 1}</span>
+                        </td>
+
+                        <td className="px-3 py-3 min-w-[160px]">
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={`https://mc-heads.net/avatar/${encodeURIComponent(test.playerName)}/24`}
+                              alt={test.playerName}
+                              className="w-6 h-6 rounded bg-black flex-shrink-0"
+                              onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/24"; }}
+                            />
+                            <Link href={`/players/${test.playerId}`}
+                              className="font-bold text-sm text-white hover:text-primary transition-colors">
+                              {test.playerName}
+                            </Link>
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <GamemodeIcon name={test.gamemodeName} size={16} />
+                            <span className="text-[10px] font-bold text-muted-foreground">{test.gamemodeName}</span>
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3">
+                          <span className="text-sm font-black text-primary">{test.requestedTier}</span>
+                        </td>
+
+                        <td className="px-3 py-3">
+                          <StatusBadge status={test.status} />
+                        </td>
+
+                        <td className="px-3 py-3">
+                          {test.testerName
+                            ? <span className="text-xs text-white/60 font-semibold">{test.testerName}</span>
+                            : <span className="text-muted-foreground/30 text-xs">Unassigned</span>}
+                        </td>
+
+                        <td className="px-3 py-3 text-center">
+                          {test.result ? (
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border
+                              ${test.result === "pass"
+                                ? "bg-green-500/15 text-green-400 border-green-500/30"
+                                : "bg-red-500/15 text-red-400 border-red-500/30"}`}>
+                              {test.result === "pass" ? "PASS" : "FAIL"}
+                            </span>
+                          ) : <span className="text-muted-foreground/25 text-xs">—</span>}
+                        </td>
+
+                        <td className="px-4 py-3 text-right">
+                          <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+                            {format(new Date(test.createdAt), "MMM d, yyyy")}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-20 text-center text-sm text-muted-foreground">
+                No {statusFilter !== "all" ? statusFilter.replace("_", " ") : ""} tier tests found.
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
 
       </div>
     </div>

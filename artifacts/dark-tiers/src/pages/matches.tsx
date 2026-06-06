@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
+import { GamemodeIcon } from "@/lib/gamemode-icons";
 
 function Th({ children, right, center }: { children: React.ReactNode; right?: boolean; center?: boolean }) {
   return (
@@ -24,8 +25,8 @@ export default function Matches() {
   const { data, isLoading } = useListMatches({ gamemodeId: gamemodeId ?? undefined, limit: 100 });
 
   const tabs = [
-    { id: null, label: "All Modes" },
-    ...(gamemodes?.map(g => ({ id: g.id, label: g.name })) ?? []),
+    { id: null as number | null, label: "All Modes", iconName: "all" },
+    ...(gamemodes?.map(g => ({ id: g.id, label: g.name, iconName: g.name })) ?? []),
   ];
 
   const filtered = (data?.matches ?? []).filter(m =>
@@ -39,16 +40,16 @@ export default function Matches() {
       <div className="w-full max-w-screen-xl px-4 flex flex-col gap-0">
 
         {/* Header */}
-        <div className="flex items-end justify-between pb-1">
+        <div className="flex items-end justify-between mb-4">
           <div>
-            <h1 className="text-xl font-black text-white tracking-tight">Match History</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <h1 className="text-2xl font-black text-white tracking-tight">Match History</h1>
+            <p className="text-xs text-muted-foreground mt-1">
               {data
                 ? `${data.total} total matches${gamemodeId ? ` · ${tabs.find(t => t.id === gamemodeId)?.label}` : ""}`
                 : "Recent battles across the platform."}
             </p>
           </div>
-          <div className="relative w-48 flex-shrink-0">
+          <div className="relative w-52 flex-shrink-0">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Search player..."
@@ -59,20 +60,25 @@ export default function Matches() {
           </div>
         </div>
 
-        {/* Tabs above card */}
+        {/* Icon tabs */}
         <div className="flex items-end gap-0 overflow-x-auto scrollbar-none">
-          {tabs.map(tab => {
+          {tabs.map((tab) => {
             const active = gamemodeId === tab.id;
             return (
               <button
                 key={tab.id ?? "all"}
                 onClick={() => { setGamemodeId(tab.id); setSearch(""); }}
-                className={`relative flex-shrink-0 px-5 py-2.5 text-xs font-bold whitespace-nowrap transition-colors
+                className={`relative flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-xs font-bold whitespace-nowrap transition-all
                   ${active
-                    ? "text-white border border-border/50 border-b-0 rounded-t-lg -mb-px z-10 bg-card"
-                    : "text-muted-foreground hover:text-white/80"}`}
+                    ? "text-white bg-card border border-border/60 border-b-0 rounded-t-xl -mb-px z-10"
+                    : "text-muted-foreground hover:text-white/80 hover:bg-white/5 rounded-t-xl"
+                  }`}
               >
-                {tab.label}
+                {tab.id === null
+                  ? <span className="text-base leading-none">⚔️</span>
+                  : <GamemodeIcon name={tab.label} size={20} />
+                }
+                <span>{tab.label}</span>
               </button>
             );
           })}
@@ -86,19 +92,19 @@ export default function Matches() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.12 }}
-            className={`border border-border/50 bg-card rounded-xl overflow-hidden
-              ${activeIdx === 0 ? "rounded-tl-none" : ""}`}
+            className={`border border-border/60 bg-card overflow-hidden
+              ${activeIdx === 0 ? "rounded-b-xl rounded-tr-xl" : "rounded-xl"}`}
           >
             {isLoading ? (
-              <div className="p-4 space-y-1.5">
+              <div className="p-4 space-y-2">
                 {Array.from({ length: 12 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 bg-white/4 rounded-lg" />
+                  <Skeleton key={i} className="h-11 bg-white/4 rounded-lg" />
                 ))}
               </div>
             ) : filtered.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-max">
-                  <thead className="border-b border-white/8">
+                  <thead className="border-b border-white/8 bg-white/[0.02]">
                     <tr>
                       <Th center>#</Th>
                       <Th>Winner</Th>
@@ -118,18 +124,16 @@ export default function Matches() {
                       const change     = Math.abs(match.ratingChange ?? 0);
 
                       return (
-                        <tr key={match.id} className="border-b border-white/5 hover:bg-white/3 transition-colors">
-                          {/* # */}
-                          <td className="px-3 py-2.5 w-10 text-center">
+                        <tr key={match.id} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
+                          <td className="px-3 py-3 w-10 text-center">
                             <span className="text-xs font-semibold text-muted-foreground/50 tabular-nums">{i + 1}</span>
                           </td>
 
-                          {/* Winner */}
-                          <td className="px-3 py-2.5 min-w-[160px]">
+                          <td className="px-3 py-3 min-w-[160px]">
                             <div className="flex items-center gap-2">
                               <img src={`https://mc-heads.net/avatar/${encodeURIComponent(winnerName)}/24`}
                                 alt={winnerName}
-                                className="w-6 h-6 rounded-md bg-black flex-shrink-0"
+                                className="w-6 h-6 rounded bg-black flex-shrink-0"
                                 onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/24"; }} />
                               <Link href={`/players/${winnerId}`}
                                 className="font-bold text-sm text-green-400 hover:text-green-300 transition-colors truncate">
@@ -139,12 +143,11 @@ export default function Matches() {
                             </div>
                           </td>
 
-                          {/* Loser */}
-                          <td className="px-3 py-2.5 min-w-[160px]">
+                          <td className="px-3 py-3 min-w-[160px]">
                             <div className="flex items-center gap-2">
                               <img src={`https://mc-heads.net/avatar/${encodeURIComponent(loserName)}/24`}
                                 alt={loserName}
-                                className="w-6 h-6 rounded-md bg-black opacity-60 flex-shrink-0"
+                                className="w-6 h-6 rounded opacity-60 bg-black flex-shrink-0"
                                 onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/24"; }} />
                               <Link href={`/players/${loserId}`}
                                 className="font-medium text-sm text-red-400/70 hover:text-red-300 transition-colors truncate">
@@ -154,22 +157,20 @@ export default function Matches() {
                             </div>
                           </td>
 
-                          {/* Mode */}
-                          <td className="px-3 py-2.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-primary/15 text-primary border border-primary/25">
-                              {match.gamemodeName}
-                            </span>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <GamemodeIcon name={match.gamemodeName} size={16} />
+                              <span className="text-[10px] font-bold text-muted-foreground">{match.gamemodeName}</span>
+                            </div>
                           </td>
 
-                          {/* Score */}
-                          <td className="px-3 py-2.5 text-center">
+                          <td className="px-3 py-3 text-center">
                             {match.score
                               ? <span className="font-mono text-xs text-white/60 font-bold">{match.score}</span>
                               : <span className="text-muted-foreground/25">—</span>}
                           </td>
 
-                          {/* ELO Change */}
-                          <td className="px-3 py-2.5 text-right">
+                          <td className="px-3 py-3 text-right">
                             {change > 0 ? (
                               <div className="flex items-center justify-end gap-2">
                                 <span className="font-mono text-xs font-black text-green-400">+{change}</span>
@@ -179,8 +180,7 @@ export default function Matches() {
                             ) : <span className="text-muted-foreground/25">—</span>}
                           </td>
 
-                          {/* Date */}
-                          <td className="px-3 py-2.5 text-right pr-5">
+                          <td className="px-4 py-3 text-right">
                             <span className="text-[10px] text-muted-foreground/60 tabular-nums">
                               {format(new Date(match.playedAt), "MMM d, yyyy")}
                             </span>
