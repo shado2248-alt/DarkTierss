@@ -846,6 +846,34 @@ export const ResetPlayerRatingResponse = zod.object({
 
 
 /**
+ * @summary List all tier promotions (owner)
+ */
+export const ListPromotionsQueryParams = zod.object({
+  "limit": zod.coerce.number().optional(),
+  "page": zod.coerce.number().optional()
+})
+
+export const ListPromotionsResponse = zod.object({
+  "promotions": zod.array(zod.object({
+  "id": zod.number(),
+  "playerId": zod.number(),
+  "playerName": zod.string(),
+  "playerUuid": zod.string().optional(),
+  "gamemodeId": zod.number(),
+  "gamemodeName": zod.string(),
+  "fromTierName": zod.string().nullish(),
+  "fromTierColor": zod.string().nullish(),
+  "toTierName": zod.string().nullish(),
+  "toTierColor": zod.string().nullish(),
+  "promotedAt": zod.string()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
  * @summary Set tier for player by username, creates player if not registered
  */
 export const SetTierByUsernameBody = zod.object({

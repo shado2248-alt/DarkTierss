@@ -146,6 +146,70 @@ router.get("/admin/analytics", async (req, res): Promise<void> => {
   });
 });
 
+// ── PROMOTIONS ──────────────────────────────────────────────────────────────────
+router.get("/admin/promotions", async (req, res): Promise<void> => {
+  const page = parseInt(String(req.query.page ?? 1)) || 1;
+  const limit = Math.min(parseInt(String(req.query.limit ?? 50)) || 50, 200);
+  const offset = (page - 1) * limit;
+
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(tierPromotionsTable);
+
+  const rows = await db.execute<{
+    id: number;
+    player_id: number;
+    player_username: string;
+    player_uuid: string;
+    gamemode_id: number;
+    gamemode_name: string;
+    from_tier_name: string | null;
+    from_tier_color: string | null;
+    to_tier_name: string | null;
+    to_tier_color: string | null;
+    promoted_at: string;
+  }>(sql`
+    SELECT
+      tp.id,
+      p.id AS player_id,
+      p.username AS player_username,
+      p.uuid AS player_uuid,
+      g.id AS gamemode_id,
+      g.name AS gamemode_name,
+      ft.name AS from_tier_name,
+      ft.color AS from_tier_color,
+      tt.name AS to_tier_name,
+      tt.color AS to_tier_color,
+      tp.promoted_at
+    FROM tier_promotions tp
+    INNER JOIN players p ON p.id = tp.player_id
+    INNER JOIN gamemodes g ON g.id = tp.gamemode_id
+    LEFT JOIN tiers ft ON ft.id = tp.from_tier_id
+    LEFT JOIN tiers tt ON tt.id = tp.to_tier_id
+    ORDER BY tp.promoted_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `);
+
+  res.json({
+    promotions: rows.rows.map(r => ({
+      id: Number(r.id),
+      playerId: Number(r.player_id),
+      playerName: r.player_username,
+      playerUuid: r.player_uuid,
+      gamemodeId: Number(r.gamemode_id),
+      gamemodeName: r.gamemode_name,
+      fromTierName: r.from_tier_name ?? null,
+      fromTierColor: r.from_tier_color ?? null,
+      toTierName: r.to_tier_name ?? null,
+      toTierColor: r.to_tier_color ?? null,
+      promotedAt: String(r.promoted_at),
+    })),
+    total: Number(total ?? 0),
+    page,
+    limit,
+  });
+});
+
 // ── SET TIER BY USERNAME ────────────────────────────────────────────────────────
 router.post("/admin/set-tier-by-username", async (req, res): Promise<void> => {
   const { username, gamemodeId, tierId } = req.body ?? {};

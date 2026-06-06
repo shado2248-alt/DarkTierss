@@ -469,6 +469,31 @@ export interface ResetRatingInput {
   newRating?: number;
 }
 
+export interface PromotionEntry {
+  id: number;
+  playerId: number;
+  playerName: string;
+  playerUuid?: string;
+  gamemodeId: number;
+  gamemodeName: string;
+  /** @nullable */
+  fromTierName?: string | null;
+  /** @nullable */
+  fromTierColor?: string | null;
+  /** @nullable */
+  toTierName?: string | null;
+  /** @nullable */
+  toTierColor?: string | null;
+  promotedAt: string;
+}
+
+export interface PromotionList {
+  promotions: PromotionEntry[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface SetTierByUsernameInput {
   username: string;
   gamemodeId: number;
@@ -565,4 +590,9 @@ export const GetAnalyticsPeriod = {
   '30d': '30d',
   '90d': '90d',
 } as const;
+
+export type ListPromotionsParams = {
+limit?: number;
+page?: number;
+};
 

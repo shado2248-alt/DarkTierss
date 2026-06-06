@@ -850,6 +850,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/Player"
 
+  /admin/promotions:
+    get:
+      operationId: listPromotions
+      tags: [admin]
+      summary: List all tier promotions (owner)
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Promotion history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromotionList"
+
   /admin/set-tier-by-username:
     post:
       operationId: setTierByUsername
@@ -1584,6 +1606,48 @@ components:
         gamemodeId:
           type: integer
         newRating:
+          type: integer
+
+    PromotionEntry:
+      type: object
+      required: [id, playerId, playerName, gamemodeId, gamemodeName, promotedAt]
+      properties:
+        id:
+          type: integer
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        playerUuid:
+          type: string
+        gamemodeId:
+          type: integer
+        gamemodeName:
+          type: string
+        fromTierName:
+          type: ["string", "null"]
+        fromTierColor:
+          type: ["string", "null"]
+        toTierName:
+          type: ["string", "null"]
+        toTierColor:
+          type: ["string", "null"]
+        promotedAt:
+          type: string
+
+    PromotionList:
+      type: object
+      required: [promotions, total, page, limit]
+      properties:
+        promotions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromotionEntry"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
           type: integer
 
     SetTierByUsernameInput:

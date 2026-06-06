@@ -39,6 +39,7 @@ import type {
   ListMatchesParams,
   ListPlayerMatchesParams,
   ListPlayersParams,
+  ListPromotionsParams,
   ListTestsParams,
   ListTiersParams,
   ListUsersParams,
@@ -53,6 +54,7 @@ import type {
   PlayerProfile,
   PlayerRating,
   PlayerUpdate,
+  PromotionList,
   RecentActivity,
   ResetRatingInput,
   SetTierByUsernameInput,
@@ -3105,6 +3107,90 @@ export const useResetPlayerRating = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getResetPlayerRatingMutationOptions(options));
     }
+
+export const getListPromotionsUrl = (params?: ListPromotionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/promotions?${stringifiedParams}` : `/api/admin/promotions`
+}
+
+/**
+ * @summary List all tier promotions (owner)
+ */
+export const listPromotions = async (params?: ListPromotionsParams, options?: RequestInit): Promise<PromotionList> => {
+
+  return customFetch<PromotionList>(getListPromotionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPromotionsQueryKey = (params?: ListPromotionsParams,) => {
+    return [
+    `/api/admin/promotions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPromotionsQueryOptions = <TData = Awaited<ReturnType<typeof listPromotions>>, TError = ErrorType<unknown>>(params?: ListPromotionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPromotions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPromotionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPromotions>>> = ({ signal }) => listPromotions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPromotions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPromotionsQueryResult = NonNullable<Awaited<ReturnType<typeof listPromotions>>>
+export type ListPromotionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all tier promotions (owner)
+ */
+
+export function useListPromotions<TData = Awaited<ReturnType<typeof listPromotions>>, TError = ErrorType<unknown>>(
+ params?: ListPromotionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPromotions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPromotionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getSetTierByUsernameUrl = () => {
 
