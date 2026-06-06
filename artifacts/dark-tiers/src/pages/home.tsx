@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useGetStats, useGetRecentActivity, useListAnnouncements, useGetLeaderboard, useListGamemodes, useListTests, useListMatches } from "@workspace/api-client-react";
+import { useGetStats, useGetRecentActivity, useGetLeaderboard, useListTests, useListMatches } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { TierBadge } from "../components/ui/tier-badge";
 import { motion, useInView, AnimatePresence } from "framer-motion";
@@ -138,7 +138,6 @@ export default function Home() {
   const { data: stats }        = useGetStats();
   const { data: activity }     = useGetRecentActivity();
   const { data: leaderboard }  = useGetLeaderboard({ limit: 5 });
-  const { data: gamemodes }    = useListGamemodes();
   const { data: testsData }    = useListTests({ limit: 6 });
   const { data: matchesData }  = useListMatches({ limit: 8 });
 
@@ -420,34 +419,6 @@ export default function Home() {
               <div className="glass-card border border-white/8 rounded-2xl h-24 flex items-center justify-center text-muted-foreground/40 text-xs">
                 No tests yet
               </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-4"><div className="h-px bg-white/6" /></div>
-
-      {/* ══ GAME MODES ══════════════════════════════════════════ */}
-      <section className="max-w-7xl mx-auto px-4 py-16">
-        <Reveal>
-          <div className="mb-8">
-            <SectionHead label="Compete" title="Game Modes" sub="Compete across all major PvP disciplines" />
-          </div>
-        </Reveal>
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x">
-          {(gamemodes ?? []).map((gm, i) => (
-            <Reveal key={gm.id} delay={i * 0.04}>
-              <Link href={`/leaderboard`}>
-                <div className="flex-shrink-0 snap-start w-44 glass-card border border-white/10 hover:border-primary/50 rounded-2xl p-4 transition-all duration-200 hover:shadow-[0_0_20px_rgba(120,40,200,0.2)] hover:-translate-y-0.5 cursor-pointer group">
-                  <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center text-primary mb-3 group-hover:bg-primary/25 transition-colors">
-                    {GM_ICON[gm.slug] ?? <Swords className="w-5 h-5" />}
-                  </div>
-                  <div className="font-black text-sm text-white mb-1">{gm.name}</div>
-                  <div className="text-[11px] text-muted-foreground leading-snug">
-                    {GM_DESC[gm.slug] ?? gm.description ?? "Competitive ranked mode"}
-                  </div>
-                </div>
-              </Link>
             </Reveal>
           ))}
         </div>

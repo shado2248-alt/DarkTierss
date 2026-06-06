@@ -11,6 +11,15 @@ import {
 
 const router: IRouter = Router();
 
+/* Public: list tier testers */
+router.get("/testers", async (_req, res): Promise<void> => {
+  const testers = await db
+    .select({ id: usersTable.id, username: usersTable.username, displayName: usersTable.displayName, role: usersTable.role, avatar: usersTable.avatar })
+    .from(usersTable)
+    .where(sql`${usersTable.role} IN ('tester','moderator','admin','owner')`);
+  res.json(testers);
+});
+
 async function formatTest(t: typeof testsTable.$inferSelect) {
   const [player] = await db.select().from(playersTable).where(eq(playersTable.id, t.playerId));
   const [gm] = await db.select().from(gamemodesTable).where(eq(gamemodesTable.id, t.gamemodeId));
