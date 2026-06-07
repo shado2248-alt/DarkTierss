@@ -1,7 +1,6 @@
-import { useState, Fragment } from "react";
+import { useState } from "react";
 import { useGetLeaderboard, useListGamemodes, useGetMe, useCreateMatch, useListPlayers } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
 import { TierBadge } from "@/components/ui/tier-badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -187,9 +186,9 @@ function PlayerCard({
 }) {
   const rankedGms = player.gamemodes.filter(g => g.tierName);
   const rankBg =
-    player.rank === 1 ? "bg-yellow-500/[0.18] border-yellow-500/50 shadow-[0_0_18px_rgba(234,179,8,0.12)]"
-    : player.rank === 2 ? "bg-slate-400/[0.14] border-slate-400/40 shadow-[0_0_14px_rgba(148,163,184,0.08)]"
-    : player.rank === 3 ? "bg-orange-700/[0.18] border-orange-500/40 shadow-[0_0_14px_rgba(194,65,12,0.10)]"
+    player.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30"
+    : player.rank === 2 ? "bg-slate-400/10 border-slate-400/20"
+    : player.rank === 3 ? "bg-orange-500/10 border-orange-500/20"
     : "bg-card border-border/40";
 
   return (
@@ -207,7 +206,6 @@ function PlayerCard({
 
       {/* Right — info + tiers */}
       <div className="flex-1 px-5 py-4 min-w-0">
-        {/* Name + region */}
         <div className="flex items-center gap-2.5 flex-wrap">
           <span className="font-black text-lg text-white leading-tight truncate">
             {player.username}
@@ -218,7 +216,6 @@ function PlayerCard({
           {rankedGms.length} mode{rankedGms.length !== 1 ? "s" : ""} ranked
         </p>
 
-        {/* Tiers row */}
         {rankedGms.length > 0 && (
           <div className="mt-3">
             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-2">Tiers</p>
@@ -254,14 +251,12 @@ function TierColumn({
   const style = TIER_NUM_STYLE[tierNum] ?? TIER_NUM_STYLE[5];
   return (
     <div className={`flex-1 min-w-[200px] rounded-xl border ${style.border} bg-card/60 overflow-hidden`}>
-      {/* Header */}
       <div className={`px-4 py-3 border-b ${style.border} bg-black/20`}>
         <div className="flex items-center gap-2">
           <img src={trophyImg} alt="Tier" className="w-5 h-5 object-contain opacity-80" style={{ filter: `drop-shadow(0 0 4px ${style.trophy})` }} />
           <span className={`font-black text-sm ${style.header}`}>Tier {tierNum}</span>
         </div>
       </div>
-      {/* Player list */}
       <div className="divide-y divide-white/[0.04]">
         {entries.map(entry => {
           const isHT = entry.tierName?.startsWith("HT") ?? false;
@@ -337,7 +332,6 @@ export default function Leaderboard() {
     !search || p.username.toLowerCase().includes(search.toLowerCase())
   );
 
-  /* Group per-gamemode entries into tier columns 1–5 */
   const gmEntries = (tableData?.entries ?? []) as unknown as LeaderboardEntry[];
   const filteredGm = gmEntries.filter(e =>
     !search || e.username.toLowerCase().includes(search.toLowerCase())
