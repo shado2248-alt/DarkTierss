@@ -187,9 +187,9 @@ function PlayerCard({
 }) {
   const rankedGms = player.gamemodes.filter(g => g.tierName);
   const rankBg =
-    player.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30"
-    : player.rank === 2 ? "bg-slate-400/10 border-slate-400/20"
-    : player.rank === 3 ? "bg-orange-500/10 border-orange-500/20"
+    player.rank === 1 ? "bg-yellow-500/[0.18] border-yellow-500/50 shadow-[0_0_18px_rgba(234,179,8,0.12)]"
+    : player.rank === 2 ? "bg-slate-400/[0.14] border-slate-400/40 shadow-[0_0_14px_rgba(148,163,184,0.08)]"
+    : player.rank === 3 ? "bg-orange-700/[0.18] border-orange-500/40 shadow-[0_0_14px_rgba(194,65,12,0.10)]"
     : "bg-card border-border/40";
 
   return (

@@ -10,8 +10,6 @@ import { WelcomeBanner } from "@/components/ui/welcome-banner";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Leaderboard from "@/pages/leaderboard";
-import Players from "@/pages/players";
-import PlayerProfile from "@/pages/player-profile";
 import Matches from "@/pages/matches";
 import Tests from "@/pages/tests";
 import Announcements from "@/pages/announcements";
@@ -20,7 +18,6 @@ import Admin from "@/pages/admin";
 import Login from "@/pages/login";
 import Profile from "@/pages/profile";
 import Compare from "@/pages/compare";
-import Staff from "@/pages/staff";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,20 +36,18 @@ function Router() {
       <Navbar />
       <WelcomeBanner />
       <main className="flex-1 flex flex-col">
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           <motion.div
             key={location}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, position: "absolute" } as any}
-            transition={{ duration: 0.12 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const }}
             className="flex-1 flex flex-col"
           >
             <Switch>
               <Route path="/" component={Home} />
               <Route path="/leaderboard" component={Leaderboard} />
-              <Route path="/players" component={Players} />
-              <Route path="/players/:id" component={PlayerProfile} />
               <Route path="/matches" component={Matches} />
               <Route path="/tests" component={Tests} />
               <Route path="/announcements" component={Announcements} />
@@ -61,7 +56,6 @@ function Router() {
               <Route path="/login" component={Login} />
               <Route path="/profile" component={Profile} />
               <Route path="/compare" component={Compare} />
-              <Route path="/staff" component={Staff} />
               <Route component={NotFound} />
             </Switch>
           </motion.div>
