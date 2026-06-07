@@ -912,6 +912,29 @@ export const ResetPlayerRatingResponse = zod.object({
 
 
 /**
+ * @summary List audit log entries (owner only)
+ */
+export const ListAuditLogsQueryParams = zod.object({
+  "page": zod.coerce.number().optional(),
+  "limit": zod.coerce.number().optional()
+})
+
+export const ListAuditLogsResponse = zod.object({
+  "logs": zod.array(zod.object({
+  "id": zod.number(),
+  "actorId": zod.number().nullish(),
+  "actorName": zod.string(),
+  "action": zod.string(),
+  "details": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.string()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
  * @summary List all tier promotions (owner)
  */
 export const ListPromotionsQueryParams = zod.object({

@@ -8,7 +8,7 @@ import {
   useListAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement,
   useListGamemodes, useCreateGamemode, useUpdateGamemode, useDeleteGamemode,
   useListTiers, useCreateTier, useUpdateTier, useDeleteTier,
-  useSetTierByUsername, useListPromotions, useGetSettings, useUpdateSettings,
+  useSetTierByUsername, useListPromotions, useGetSettings, useUpdateSettings, useListAuditLogs,
 } from "@workspace/api-client-react";
 import { Redirect } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContai
 import {
   Users, Swords, ShieldCheck, Megaphone, LayoutDashboard, Trash2,
   CheckCircle, XCircle, Pin, PinOff, Globe, Layers, Gamepad2,
-  Plus, UserCog, Pencil, Save, X, RefreshCw, TrendingUp,
+  Plus, UserCog, Pencil, Save, X, RefreshCw, TrendingUp, ClipboardList,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 type AdminTab =
   | "overview" | "user-role" | "tier-result"
   | "users" | "players" | "ratings" | "gamemodes" | "tiers" | "promotions" | "settings"
-  | "matches" | "tests" | "announcements";
+  | "matches" | "tests" | "announcements" | "audit-log";
 
 const COLORS = ["#8b5cf6", "#6366f1", "#f97316", "#22c55e", "#ec4899", "#14b8a6", "#f43f5e", "#a855f7", "#06b6d4", "#84cc16"];
 const REGIONS = ["NA", "EU", "AS", "OC", "SA"];
@@ -75,6 +75,7 @@ const TAB_GROUPS: TabGroup[] = [
       { id: "gamemodes",  label: "Gamemodes",     icon: <Gamepad2 className="w-4 h-4" /> },
       { id: "tiers",      label: "Tiers",         icon: <Layers className="w-4 h-4" /> },
       { id: "promotions", label: "Promotions",    icon: <TrendingUp className="w-4 h-4" /> },
+      { id: "audit-log",  label: "Audit Log",     icon: <ClipboardList className="w-4 h-4" /> },
       { id: "settings",   label: "Settings",      icon: <Globe className="w-4 h-4" /> },
     ],
   },
@@ -1245,27 +1246,117 @@ function AnnouncementsTab({ userId }: { userId: number }) {
   );
 }
 
+// ── AUDIT LOG ─────────────────────────────────────────────────────────────────
+const ACTION_META: Record<string, { label: string; color: string }> = {
+  match_created:       { label: "Match Posted",      color: "text-green-400 bg-green-500/10 border-green-500/30" },
+  test_approved:       { label: "Test Approved",     color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
+  test_rejected:       { label: "Test Rejected",     color: "text-red-400 bg-red-500/10 border-red-500/30" },
+  test_in_progress:    { label: "Test In Progress",  color: "text-blue-400 bg-blue-500/10 border-blue-500/30" },
+  tier_set:            { label: "Tier Set",           color: "text-violet-400 bg-violet-500/10 border-violet-500/30" },
+  tier_changed:        { label: "Tier Changed",      color: "text-purple-400 bg-purple-500/10 border-purple-500/30" },
+  announcement_posted: { label: "Announcement",      color: "text-sky-400 bg-sky-500/10 border-sky-500/30" },
+};
+
+function auditDetails(action: string, details: Record<string, unknown>): string {
+  switch (action) {
+    case "match_created":
+      return `${details.winner} def. ${details.loser} in ${details.gamemode} (+${details.ratingChange} ELO)`;
+    case "test_approved":
+    case "test_rejected":
+    case "test_in_progress":
+      return `${details.playerName} — ${details.gamemodeName} (${details.requestedTier})`;
+    case "tier_set":
+      return `${details.playerUsername} → ${details.tierName} in mode #${details.gamemodeId}`;
+    case "tier_changed":
+      return `${details.playerUsername} → ${details.tierName}`;
+    case "announcement_posted":
+      return `"${details.title}" (${details.type})`;
+    default:
+      return JSON.stringify(details).slice(0, 80);
+  }
+}
+
+function AuditLogTab() {
+  const [page, setPage] = useState(1);
+  const { data } = useListAuditLogs({ page, limit: 50 } as any);
+  const logs = data?.logs ?? [];
+  const total = data?.total ?? 0;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="glass-card rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
+        Every action by a tester, admin, or owner is recorded here.
+        <span className="text-primary font-bold"> Only you (owner) can see this log.</span>
+      </div>
+      <div className="glass-card rounded-2xl overflow-hidden border border-white/10">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-[10px] uppercase tracking-widest text-muted-foreground bg-black/40 border-b border-white/10">
+              <tr>{["When", "Actor", "Action", "Details"].map(h => <th key={h} className="px-4 py-3">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {logs.length === 0 && (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground/50 text-xs">No actions logged yet.</td></tr>
+              )}
+              {logs.map(log => {
+                const meta = ACTION_META[log.action] ?? { label: log.action, color: "text-muted-foreground bg-white/5 border-white/10" };
+                return (
+                  <tr key={log.id} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-white text-sm">{log.actorName}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${meta.color}`}>
+                        {meta.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs truncate">
+                      {auditDetails(log.action, (log.details ?? {}) as Record<string, unknown>)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {total > 50 && (
+        <div className="flex items-center gap-3">
+          <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="text-xs">Prev</Button>
+          <span className="text-xs text-muted-foreground">{(page - 1) * 50 + 1}–{Math.min(page * 50, total)} of {total}</span>
+          <Button size="sm" variant="ghost" disabled={page * 50 >= total} onClick={() => setPage(p => p + 1)} className="text-xs">Next</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── SETTINGS ─────────────────────────────────────────────────────────────────
 function SettingsTab() {
   const { data, refetch } = useGetSettings();
   const updateSettings = useUpdateSettings();
   const settings = data as any;
 
-  const [form, setForm] = useState({ serverIp: "", discordUrl: "" });
+  const [form, setForm] = useState({ serverIp: "", discordUrl: "", discordWebhookUrl: "" });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (settings) {
-      setForm({ serverIp: settings.serverIp ?? "", discordUrl: settings.discordUrl ?? "" });
+      setForm({
+        serverIp: settings.serverIp ?? "",
+        discordUrl: settings.discordUrl ?? "",
+        discordWebhookUrl: settings.discordWebhookUrl ?? "",
+      });
     }
-  }, [settings?.serverIp, settings?.discordUrl]);
+  }, [settings?.serverIp, settings?.discordUrl, settings?.discordWebhookUrl]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true); setSaved(false);
     try {
-      await updateSettings.mutateAsync({ data: { serverIp: form.serverIp, discordUrl: form.discordUrl } });
+      await updateSettings.mutateAsync({ data: { serverIp: form.serverIp, discordUrl: form.discordUrl, discordWebhookUrl: form.discordWebhookUrl } as any });
       refetch(); setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } finally { setSaving(false); }
@@ -1304,12 +1395,12 @@ function SettingsTab() {
         <div>
           <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Discord Webhook URL</label>
           <Input
-            value={(form as any).discordWebhookUrl ?? ""}
-            onChange={e => setForm(f => ({ ...f, discordWebhookUrl: e.target.value } as any))}
+            value={form.discordWebhookUrl}
+            onChange={e => setForm(f => ({ ...f, discordWebhookUrl: e.target.value }))}
             placeholder="https://discord.com/api/webhooks/..."
             className="bg-black/40 border-white/10 text-white font-mono text-xs"
           />
-          <p className="text-[10px] text-muted-foreground/50 mt-1">Tier promotions will be auto-posted here. Leave blank to disable. See tutorial below.</p>
+          <p className="text-[10px] text-muted-foreground/50 mt-1">Match results, tier promotions, and announcements will be auto-posted here. Leave blank to disable.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -1436,6 +1527,7 @@ export default function Admin() {
           {tab === "gamemodes"     && <GamemodesTab />}
           {tab === "tiers"         && <TiersTab />}
           {tab === "promotions"    && <PromotionsTab />}
+          {tab === "audit-log"     && <AuditLogTab />}
           {tab === "matches"       && <MatchesTab />}
           {tab === "tests"         && <TestsTab />}
           {tab === "announcements" && <AnnouncementsTab userId={(user as any).id} />}

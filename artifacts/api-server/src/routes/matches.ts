@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, matchesTable, playersTable, gamemodesTable, playerRatingsTable, tierPromotionsTable, tiersTable, settingsTable } from "@workspace/db";
+import { db, matchesTable, playersTable, gamemodesTable, playerRatingsTable, tierPromotionsTable, tiersTable, auditLogsTable } from "@workspace/db";
 import { eq, desc, sql, and } from "drizzle-orm";
 import {
   ListMatchesQueryParams,
@@ -9,6 +9,7 @@ import {
   UpdateMatchBody,
   DeleteMatchParams,
 } from "@workspace/api-zod";
+import { webhookMatchCreated, webhookTierPromotion } from "../lib/webhook";
 
 const router: IRouter = Router();
 
@@ -95,168 +96,149 @@ router.post("/matches", async (req, res): Promise<void> => {
   }
 
   const winnerRating = await getOrCreateRating(winnerId);
-  const loserRating = await getOrCreateRating(loserId);
+  const loserRating  = await getOrCreateRating(loserId);
 
-  const ratingChange = calcElo(winnerRating.rating, loserRating.rating);
+  const ratingChange   = calcElo(winnerRating.rating, loserRating.rating);
   const newWinnerRating = winnerRating.rating + ratingChange;
-  const newLoserRating = Math.max(100, loserRating.rating - ratingChange);
+  const newLoserRating  = Math.max(100, loserRating.rating - ratingChange);
 
   // Determine tier from rating
   async function getTierForRating(rating: number) {
-    const tiers = await db
-      .select()
-      .from(tiersTable)
-      .orderBy(tiersTable.rank);
+    const tiers = await db.select().from(tiersTable).orderBy(tiersTable.rank);
     for (const tier of tiers) {
-      if (rating >= tier.minRating && (tier.maxRating == null || rating <= tier.maxRating)) {
-        return tier;
-      }
+      if (rating >= tier.minRating && (tier.maxRating == null || rating <= tier.maxRating)) return tier;
     }
     return null;
   }
 
   const newWinnerTier = await getTierForRating(newWinnerRating);
-  const newLoserTier = await getTierForRating(newLoserRating);
+  const newLoserTier  = await getTierForRating(newLoserRating);
+  const tierChanged   = newWinnerTier && (!winnerRating.tierId || winnerRating.tierId !== newWinnerTier.id);
 
   // Track promotion if tier changed for winner
-  if (newWinnerTier && (!winnerRating.tierId || winnerRating.tierId !== newWinnerTier.id)) {
+  if (tierChanged) {
     await db.insert(tierPromotionsTable).values({
       playerId: winnerId,
       gamemodeId,
       fromTierId: winnerRating.tierId,
-      toTierId: newWinnerTier.id,
+      toTierId: newWinnerTier!.id,
     });
   }
 
   // Streak calculation
-  const newWinnerStreak = (winnerRating.currentStreak ?? 0) + 1;
+  const newWinnerStreak    = (winnerRating.currentStreak ?? 0) + 1;
   const newWinnerMaxStreak = Math.max(winnerRating.maxStreak ?? 0, newWinnerStreak);
 
   // Update ratings + streaks
-  await db
-    .update(playerRatingsTable)
-    .set({
-      rating: newWinnerRating,
-      peakRating: Math.max(winnerRating.peakRating, newWinnerRating),
-      wins: winnerRating.wins + 1,
-      totalMatches: winnerRating.totalMatches + 1,
-      tierId: newWinnerTier?.id ?? winnerRating.tierId,
-      currentStreak: newWinnerStreak,
-      maxStreak: newWinnerMaxStreak,
-    })
-    .where(and(eq(playerRatingsTable.playerId, winnerId), eq(playerRatingsTable.gamemodeId, gamemodeId)));
+  await db.update(playerRatingsTable).set({
+    rating:       newWinnerRating,
+    peakRating:   Math.max(winnerRating.peakRating, newWinnerRating),
+    wins:         winnerRating.wins + 1,
+    totalMatches: winnerRating.totalMatches + 1,
+    tierId:       newWinnerTier?.id ?? winnerRating.tierId,
+    currentStreak: newWinnerStreak,
+    maxStreak:    newWinnerMaxStreak,
+  }).where(and(eq(playerRatingsTable.playerId, winnerId), eq(playerRatingsTable.gamemodeId, gamemodeId)));
 
-  await db
-    .update(playerRatingsTable)
-    .set({
-      rating: newLoserRating,
-      losses: loserRating.losses + 1,
-      totalMatches: loserRating.totalMatches + 1,
-      tierId: newLoserTier?.id ?? loserRating.tierId,
-      currentStreak: 0,
-    })
-    .where(and(eq(playerRatingsTable.playerId, loserId), eq(playerRatingsTable.gamemodeId, gamemodeId)));
+  await db.update(playerRatingsTable).set({
+    rating:       newLoserRating,
+    losses:       loserRating.losses + 1,
+    totalMatches: loserRating.totalMatches + 1,
+    tierId:       newLoserTier?.id ?? loserRating.tierId,
+    currentStreak: 0,
+  }).where(and(eq(playerRatingsTable.playerId, loserId), eq(playerRatingsTable.gamemodeId, gamemodeId)));
 
-  const [match] = await db
-    .insert(matchesTable)
-    .values({
-      gamemodeId,
-      player1Id,
-      player2Id,
-      winnerId,
-      score,
-      ratingChange,
-      notes,
-      playedAt: playedAt ? new Date(playedAt) : new Date(),
-    })
-    .returning();
+  const [match] = await db.insert(matchesTable).values({
+    gamemodeId,
+    player1Id,
+    player2Id,
+    winnerId,
+    score,
+    ratingChange,
+    notes,
+    playedAt: playedAt ? new Date(playedAt) : new Date(),
+  }).returning();
 
-  // Fire Discord webhook on tier promotion
-  if (newWinnerTier && (!winnerRating.tierId || winnerRating.tierId !== newWinnerTier.id)) {
-    try {
-      const settingsRows = await db.select().from(settingsTable);
-      const webhookUrl = settingsRows.find(r => r.key === "discordWebhookUrl")?.value;
-      if (webhookUrl) {
-        const [winnerPlayer] = await db.select().from(playersTable).where(eq(playersTable.id, winnerId));
-        const [gm] = await db.select().from(gamemodesTable).where(eq(gamemodesTable.id, gamemodeId));
-        const oldTierRow = winnerRating.tierId
-          ? (await db.select().from(tiersTable).where(eq(tiersTable.id, winnerRating.tierId)))[0]
-          : null;
-        await fetch(webhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            embeds: [{
-              title: "Tier Promotion",
-              color: 0x8b5cf6,
-              description: `**${winnerPlayer?.username ?? "Unknown"}** was promoted in **${gm?.name ?? "Unknown"}**`,
-              fields: [
-                { name: "From", value: oldTierRow?.name ?? "Unranked", inline: true },
-                { name: "To", value: newWinnerTier.name, inline: true },
-                { name: "New Rating", value: String(newWinnerRating), inline: true },
-              ],
-              timestamp: new Date().toISOString(),
-            }],
-          }),
-        }).catch(() => {}); // fire-and-forget, never block
-      }
-    } catch { /* webhook errors must never break match creation */ }
+  // Audit log
+  const session = req.session as any;
+  const actorId = session?.userId as number | undefined;
+  const [winnerPlayer] = await db.select().from(playersTable).where(eq(playersTable.id, winnerId));
+  const [loserPlayer]  = await db.select().from(playersTable).where(eq(playersTable.id, loserId));
+  const [gm]           = await db.select().from(gamemodesTable).where(eq(gamemodesTable.id, gamemodeId));
+
+  let actorName = "Unknown";
+  if (actorId) {
+    const { usersTable } = await import("@workspace/db");
+    const [actor] = await db.select({ username: usersTable.username, displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, actorId));
+    if (actor) actorName = actor.displayName ?? actor.username ?? "Unknown";
   }
+
+  db.insert(auditLogsTable).values({
+    actorId: actorId ?? null,
+    actorName,
+    action: "match_created",
+    details: {
+      matchId:      match.id,
+      gamemode:     gm?.name ?? "Unknown",
+      winner:       winnerPlayer?.username ?? "Unknown",
+      loser:        loserPlayer?.username ?? "Unknown",
+      ratingChange,
+      score: score ?? null,
+    },
+  }).catch(() => {});
+
+  // Discord webhooks (fire-and-forget)
+  try {
+    await webhookMatchCreated({
+      winnerName:   winnerPlayer?.username ?? "Unknown",
+      loserName:    loserPlayer?.username  ?? "Unknown",
+      gamemodeName: gm?.name ?? "Unknown",
+      ratingChange,
+      score,
+    });
+    if (tierChanged) {
+      const oldTierRow = winnerRating.tierId
+        ? (await db.select().from(tiersTable).where(eq(tiersTable.id, winnerRating.tierId)))[0]
+        : null;
+      await webhookTierPromotion({
+        playerName:   winnerPlayer?.username ?? "Unknown",
+        gamemodeName: gm?.name ?? "Unknown",
+        fromTier:     oldTierRow?.name ?? null,
+        toTier:       newWinnerTier!.name,
+        newRating:    newWinnerRating,
+      });
+    }
+  } catch { /* webhook errors never block */ }
 
   res.status(201).json(await formatMatch(match));
 });
 
 router.get("/matches/:id", async (req, res): Promise<void> => {
   const params = GetMatchParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [match] = await db.select().from(matchesTable).where(eq(matchesTable.id, params.data.id));
-  if (!match) {
-    res.status(404).json({ error: "Match not found" });
-    return;
-  }
+  if (!match) { res.status(404).json({ error: "Match not found" }); return; }
   res.json(await formatMatch(match));
 });
 
 router.patch("/matches/:id", async (req, res): Promise<void> => {
   const params = UpdateMatchParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const parsed = UpdateMatchBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const updates: Record<string, unknown> = {};
   if (parsed.data.score != null) updates.score = parsed.data.score;
   if (parsed.data.notes != null) updates.notes = parsed.data.notes;
-  const [match] = await db
-    .update(matchesTable)
-    .set(updates)
-    .where(eq(matchesTable.id, params.data.id))
-    .returning();
-  if (!match) {
-    res.status(404).json({ error: "Match not found" });
-    return;
-  }
+  const [match] = await db.update(matchesTable).set(updates).where(eq(matchesTable.id, params.data.id)).returning();
+  if (!match) { res.status(404).json({ error: "Match not found" }); return; }
   res.json(await formatMatch(match));
 });
 
 router.delete("/matches/:id", async (req, res): Promise<void> => {
   const params = DeleteMatchParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const [match] = await db.delete(matchesTable).where(eq(matchesTable.id, params.data.id)).returning();
-  if (!match) {
-    res.status(404).json({ error: "Match not found" });
-    return;
-  }
+  if (!match) { res.status(404).json({ error: "Match not found" }); return; }
   res.sendStatus(204);
 });
 

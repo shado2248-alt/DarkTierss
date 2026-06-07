@@ -547,6 +547,25 @@ export interface ChangeTierInput {
   tierId: number;
 }
 
+export type AuditLogEntryDetails = {[key: string]: unknown};
+
+export interface AuditLogEntry {
+  id: number;
+  /** @nullable */
+  actorId?: number | null;
+  actorName: string;
+  action: string;
+  details: AuditLogEntryDetails;
+  createdAt: string;
+}
+
+export interface AuditLogList {
+  logs: AuditLogEntry[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export type ListTiersParams = {
 gamemodeId?: number;
 };
@@ -629,6 +648,11 @@ export const GetAnalyticsPeriod = {
   '30d': '30d',
   '90d': '90d',
 } as const;
+
+export type ListAuditLogsParams = {
+page?: number;
+limit?: number;
+};
 
 export type ListPromotionsParams = {
 limit?: number;

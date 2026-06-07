@@ -9,3 +9,4 @@ export * from "./announcements";
 export * from "./tier-promotions";
 export * from "./sessions";
 export * from "./settings";
+export * from "./audit-logs";

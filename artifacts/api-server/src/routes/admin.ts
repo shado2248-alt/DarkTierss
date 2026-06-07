@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, playersTable, matchesTable, testsTable, playerRatingsTable, tiersTable, tierPromotionsTable, announcementsTable, settingsTable } from "@workspace/db";
+import { db, usersTable, playersTable, matchesTable, testsTable, playerRatingsTable, tiersTable, tierPromotionsTable, announcementsTable, settingsTable, auditLogsTable } from "@workspace/db";
 import { eq, ilike, desc, sql, and } from "drizzle-orm";
 import {
   ListUsersQueryParams,
@@ -321,6 +321,20 @@ router.post("/admin/set-tier-by-username", async (req, res): Promise<void> => {
     });
   }
 
+  // Audit log
+  const sessionActor = (req.session as any)?.userId as number | undefined;
+  let actorNameStr = "Unknown";
+  if (sessionActor) {
+    const [actor] = await db.select({ username: usersTable.username, displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, sessionActor));
+    if (actor) actorNameStr = actor.displayName ?? actor.username ?? "Unknown";
+  }
+  db.insert(auditLogsTable).values({
+    actorId: sessionActor ?? null,
+    actorName: actorNameStr,
+    action: "tier_set",
+    details: { playerUsername: player.username, gamemodeId: gmId, tierId: tId, tierName: tier.name, playerCreated: created },
+  }).catch(() => {});
+
   res.json({
     playerId: player.id,
     username: player.username,
@@ -368,6 +382,22 @@ router.post("/admin/players/:id/change-tier", async (req, res): Promise<void> =>
 
   const [player] = await db.select().from(playersTable).where(eq(playersTable.id, params.data.id));
   if (!player) { res.status(404).json({ error: "Player not found" }); return; }
+
+  // Audit log for manual tier change
+  const sessionActorId = (req.session as any)?.userId as number | undefined;
+  let changeTierActorName = "Unknown";
+  if (sessionActorId) {
+    const [actor] = await db.select({ username: usersTable.username, displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, sessionActorId));
+    if (actor) changeTierActorName = actor.displayName ?? actor.username ?? "Unknown";
+  }
+  const [newTier] = await db.select().from(tiersTable).where(eq(tiersTable.id, parsed.data.tierId));
+  db.insert(auditLogsTable).values({
+    actorId: sessionActorId ?? null,
+    actorName: changeTierActorName,
+    action: "tier_changed",
+    details: { playerUsername: player.username, playerId: player.id, gamemodeId: parsed.data.gamemodeId, tierId: parsed.data.tierId, tierName: newTier?.name ?? "Unknown" },
+  }).catch(() => {});
+
   res.json({ id: player.id, username: player.username, uuid: player.uuid, region: player.region, country: player.country, userId: player.userId, createdAt: player.createdAt.toISOString(), updatedAt: player.updatedAt.toISOString() });
 });
 
