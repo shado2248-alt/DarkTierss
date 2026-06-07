@@ -194,7 +194,7 @@ function OverviewTab() {
 }
 
 // ── USER ROLE ─────────────────────────────────────────────────────────────────
-function UserRoleTab({ myRole }: { myRole: string }) {
+function UserRoleTab({ myRole, myId }: { myRole: string; myId: number }) {
   const [search, setSearch] = useState("");
   const { data, refetch } = useListUsers({ search: search || undefined, limit: 100 });
   const updateUser = useUpdateUser();
@@ -240,7 +240,9 @@ function UserRoleTab({ myRole }: { myRole: string }) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {canAssign(user.role) ? (
+                    {user.id === myId ? (
+                      <span className="text-xs text-muted-foreground/40 italic">Your account</span>
+                    ) : canAssign(user.role) ? (
                       <Select value={user.role} onValueChange={v => { updateUser.mutateAsync({ id: user.id, data: { role: v as any } }); refetch(); }}>
                         <SelectTrigger className="h-7 text-xs w-28 bg-black/40 border-white/10 text-white"><SelectValue /></SelectTrigger>
                         <SelectContent>{roleOptions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
@@ -357,7 +359,7 @@ function TierResultTab() {
 }
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
-function UsersTab({ myRole }: { myRole: string }) {
+function UsersTab({ myRole, myId }: { myRole: string; myId: number }) {
   const [search, setSearch] = useState("");
   const { data, refetch } = useListUsers({ search: search || undefined, limit: 50 });
   const updateUser = useUpdateUser();
@@ -393,7 +395,9 @@ function UsersTab({ myRole }: { myRole: string }) {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">{(user as any).email ?? "—"}</td>
                     <td className="px-4 py-3">
-                      {availableRoles.length > 0 ? (
+                      {user.id === myId ? (
+                        <span className="text-xs text-muted-foreground/40 italic">Your account</span>
+                      ) : availableRoles.length > 0 ? (
                         <Select value={user.role} onValueChange={v => handleRole(user.id, v)}>
                           <SelectTrigger className="h-7 text-xs w-28 bg-black/40 border-white/10 text-white"><SelectValue /></SelectTrigger>
                           <SelectContent>{availableRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
@@ -407,10 +411,12 @@ function UsersTab({ myRole }: { myRole: string }) {
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(user.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => handleSuspend(user.id, !user.isSuspended)}
-                        className={`text-xs h-7 ${user.isSuspended ? "text-green-400 hover:text-green-300" : "text-red-400 hover:text-red-300"}`}>
-                        {user.isSuspended ? "Unsuspend" : "Suspend"}
-                      </Button>
+                      {user.id !== myId && (
+                        <Button size="sm" variant="ghost" onClick={() => handleSuspend(user.id, !user.isSuspended)}
+                          className={`text-xs h-7 ${user.isSuspended ? "text-green-400 hover:text-green-300" : "text-red-400 hover:text-red-300"}`}>
+                          {user.isSuspended ? "Unsuspend" : "Suspend"}
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -1422,9 +1428,9 @@ export default function Admin() {
         {/* Content */}
         <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
           {tab === "overview"      && <OverviewTab />}
-          {tab === "user-role"     && <UserRoleTab myRole={myRole} />}
+          {tab === "user-role"     && <UserRoleTab myRole={myRole} myId={(user as any).id} />}
           {tab === "tier-result"   && <TierResultTab />}
-          {tab === "users"         && <UsersTab myRole={myRole} />}
+          {tab === "users"         && <UsersTab myRole={myRole} myId={(user as any).id} />}
           {tab === "players"       && <PlayersTab />}
           {tab === "ratings"       && <RatingsTab />}
           {tab === "gamemodes"     && <GamemodesTab />}
