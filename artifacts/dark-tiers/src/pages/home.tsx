@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useGetStats, useGetRecentActivity, useGetLeaderboard, useGetSettings, useGetMe } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import { useGetStats, useGetRecentActivity, useGetSettings, useGetMe } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { TierBadge } from "../components/ui/tier-badge";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { ChevronRight, Zap, Shield, Swords, Star, Trophy, Users, MessageCircle, Copy, Check, X, Info, Server } from "lucide-react";
+import {
+  fetchTierResults, deduplicateByPlayer, abbreviateRank, timeAgo,
+  RANK_COLOR, type TierResult,
+} from "@/lib/tierlist-api";
 
 const EASE = [0.25, 0.1, 0.25, 1] as const;
 
@@ -52,25 +56,25 @@ function SectionHead({ label, title, sub }: { label: string; title: string; sub?
   );
 }
 
-/* ─── Marquee ────────────────────────────────────────────── */
-function Marquee({ matches }: { matches: any[] }) {
-  if (!matches.length) return null;
-  const items = [...matches, ...matches];
+/* ─── Tier result marquee ────────────────────────────────── */
+function TierMarquee({ results }: { results: TierResult[] }) {
+  if (!results.length) return null;
+  const sorted = [...results].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20);
+  const items = [...sorted, ...sorted];
   return (
     <div className="relative overflow-hidden" style={{ maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)" }}>
       <div className="flex gap-3 w-max" style={{ animation: "marquee-scroll 30s linear infinite" }}>
-        {items.map((m, i) => {
-          const winner = m.player1Id === m.winnerId ? m.player1Name : m.player2Name;
-          const loser  = m.player1Id === m.winnerId ? m.player2Name : m.player1Name;
+        {items.map((r, i) => {
+          const color = RANK_COLOR[r.rankEarned] ?? "#94a3b8";
           return (
             <div key={i} className="flex-shrink-0 flex items-center gap-2 bg-white/5 border border-white/8 rounded-lg px-3 py-1.5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-1.5 py-0.5 rounded">{m.gamemodeName}</span>
-              <span className="text-xs font-bold text-green-400">{winner}</span>
-              <span className="text-[10px] text-muted-foreground/50">def.</span>
-              <span className="text-xs text-red-400/70">{loser}</span>
-              {m.ratingChange != null && (
-                <span className="text-[10px] font-black text-primary font-mono">+{Math.abs(m.ratingChange)}</span>
-              )}
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-1.5 py-0.5 rounded">{r.gamemode}</span>
+              <img src={`https://mc-heads.net/avatar/${r.username}/16`} alt="" className="w-4 h-4 rounded flex-shrink-0" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <span className="text-xs font-bold text-white">{r.username}</span>
+              <span className="text-[10px] text-muted-foreground/50">earned</span>
+              <span className="text-[10px] font-black" style={{ color }}>{abbreviateRank(r.rankEarned)}</span>
+              {r.region && <span className="text-[10px] text-muted-foreground/35">· {r.region}</span>}
+              <span className="text-[10px] text-muted-foreground/25">{timeAgo(r.timestamp)}</span>
             </div>
           );
         })}
@@ -274,16 +278,23 @@ function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
 /* ─── Main page ──────────────────────────────────────────── */
 export default function Home() {
   const { data: stats }        = useGetStats();
-  const { data: activity }     = useGetRecentActivity();
-  const { data: leaderboard }  = useGetLeaderboard({ limit: 5 });
   const { data: settingsData } = useGetSettings();
   const { data: me, isLoading: meLoading } = useGetMe();
 
-  const settings    = settingsData as any;
-  const serverIp    = settings?.serverIp  || "";
-  const discordUrl  = settings?.discordUrl || "https://discord.gg/mWHwDR8bg7";
-  const recentMatches = activity?.recentMatches ?? [];
-  const isLoggedIn  = !meLoading && !!me;
+  const { data: tierResults = [] } = useQuery({
+    queryKey: ["tierlist-external"],
+    queryFn: fetchTierResults,
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+  });
+
+  const topPlayers = deduplicateByPlayer(tierResults).slice(0, 5);
+  const latestResult = [...tierResults].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] ?? null;
+
+  const settings   = settingsData as any;
+  const serverIp   = settings?.serverIp  || "";
+  const discordUrl = settings?.discordUrl || "https://discord.gg/mWHwDR8bg7";
+  const isLoggedIn = !meLoading && !!me;
   const [showInfo, setShowInfo] = useState(false);
   const heroRef = useRef<HTMLElement | null>(null);
   const spotlight = useMouseSpotlight(heroRef);
@@ -471,42 +482,43 @@ export default function Home() {
               </Link>
             </div>
             <div className="divide-y divide-white/5">
-              {leaderboard?.entries?.length ? leaderboard.entries.map((entry, i) => (
-                <div key={entry.playerId}
-                  className={`flex items-center gap-3 px-5 py-3.5 hover:bg-white/4 transition-colors
-                    ${i === 0 ? "bg-gradient-to-r from-yellow-500/8 to-transparent" : ""}`}>
-                  <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black
-                    ${i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]"
-                    : i === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-black"
-                    : i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-black"
-                    : "bg-white/8 text-white/60"}`}>
-                    {i + 1}
-                  </span>
-                  <img
-                    src={`https://mc-heads.net/body/${entry.uuid}/48`}
-                    alt={entry.username}
-                    className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-md"
-                    onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.uuid}/32`; }}
-                  />
-                  <Link href={`/players/${entry.playerId}`} className="flex-1 font-bold text-sm text-white hover:text-primary transition-colors min-w-0 break-words">
-                    {entry.username}
-                  </Link>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <TierBadge tierName={entry.tierName ?? null} tierColor={entry.tierColor ?? null} />
-                    <span className="text-primary font-black text-sm font-mono w-12 text-right">{entry.rating}</span>
+              {topPlayers.length ? topPlayers.map((entry, i) => {
+                const rankColor = RANK_COLOR[entry.rankEarned] ?? "#94a3b8";
+                return (
+                  <div key={entry.resultId}
+                    className={`flex items-center gap-3 px-5 py-3.5 hover:bg-white/4 transition-colors
+                      ${i === 0 ? "bg-gradient-to-r from-yellow-500/8 to-transparent" : ""}`}>
+                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black
+                      ${i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]"
+                      : i === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-black"
+                      : i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-black"
+                      : "bg-white/8 text-white/60"}`}>
+                      {i + 1}
+                    </span>
+                    <img
+                      src={`https://mc-heads.net/body/${entry.username}/48`}
+                      alt={entry.username}
+                      className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-md"
+                      onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.username}/32`; }}
+                    />
+                    <span className="flex-1 font-bold text-sm text-white min-w-0 break-words">{entry.username}</span>
+                    <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                      <span className="text-[11px] font-black" style={{ color: rankColor }}>{abbreviateRank(entry.rankEarned)}</span>
+                      <span className="text-[10px] text-muted-foreground/40">{entry.gamemode}</span>
+                    </div>
                   </div>
-                </div>
-              )) : (
+                );
+              }) : (
                 <div className="px-5 py-8 text-center text-muted-foreground text-sm">No ranked players yet.</div>
               )}
             </div>
             <div className="px-5 py-3 bg-black/20 border-t border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <Users className="w-3 h-3" />
-                {stats?.totalPlayers ?? 0} total players
+                {tierResults.length} results
               </div>
-              <Link href="/players" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
-                Browse All
+              <Link href="/leaderboard" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
+                Full Board
               </Link>
             </div>
           </div>
@@ -516,11 +528,50 @@ export default function Home() {
       {/* ══ MARQUEE ═════════════════════════════════════════════ */}
       <div className="border-y border-white/6 bg-black/40 py-3.5 flex items-center gap-4 overflow-hidden">
         <div className="flex-shrink-0 flex items-center gap-2 pl-4 pr-3 border-r border-white/10">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+          <motion.span
+            className="w-1.5 h-1.5 rounded-full bg-green-400"
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 1.4, repeat: Infinity }}
+          />
           <span className="text-[11px] font-black uppercase tracking-widest text-white/70">Live</span>
         </div>
-        <Marquee matches={recentMatches} />
+        <TierMarquee results={tierResults} />
+        {tierResults.length === 0 && (
+          <span className="text-[11px] text-muted-foreground/30 font-medium">Waiting for results...</span>
+        )}
       </div>
+
+      {/* ══ LATEST RESULT BANNER ════════════════════════════════ */}
+      <AnimatePresence>
+        {latestResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: EASE }}
+            className="border-b border-white/5 bg-black/30 px-4 py-2"
+          >
+            <div className="max-w-7xl mx-auto flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                Latest Result
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <img src={`https://mc-heads.net/avatar/${latestResult.username}/18`} alt="" className="w-4 h-4 rounded" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                <span className="font-bold text-white">{latestResult.username}</span>
+                <span className="text-muted-foreground/50">earned</span>
+                <span className="font-black" style={{ color: RANK_COLOR[latestResult.rankEarned] ?? "#94a3b8" }}>
+                  {abbreviateRank(latestResult.rankEarned)}
+                </span>
+                <span className="text-muted-foreground/50">in</span>
+                <span className="font-semibold text-white/80">{latestResult.gamemode}</span>
+                {latestResult.region && <span className="text-muted-foreground/40">· {latestResult.region}</span>}
+                <span className="text-muted-foreground/30">{timeAgo(latestResult.timestamp)}</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ══ HOW IT WORKS ════════════════════════════════════════ */}
       <section className="max-w-7xl mx-auto px-4 py-16">
@@ -607,42 +658,43 @@ export default function Home() {
                 </Link>
               </div>
               <div className="divide-y divide-white/5">
-                {leaderboard?.entries?.length ? leaderboard.entries.map((entry, i) => (
-                  <div key={entry.playerId}
-                    className={`flex items-center gap-3 px-5 py-3 hover:bg-white/4 transition-colors
-                      ${i === 0 ? "bg-gradient-to-r from-yellow-500/8 to-transparent" : ""}`}>
-                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black
-                      ${i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]"
-                      : i === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-black"
-                      : i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-black"
-                      : "bg-white/8 text-white/60"}`}>
-                      {i + 1}
-                    </span>
-                    <img
-                      src={`https://mc-heads.net/body/${entry.uuid}/48`}
-                      alt={entry.username}
-                      className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-md"
-                      onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.uuid}/32`; }}
-                    />
-                    <Link href={`/players/${entry.playerId}`} className="flex-1 font-bold text-sm text-white hover:text-primary transition-colors min-w-0 truncate">
-                      {entry.username}
-                    </Link>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <TierBadge tierName={entry.tierName ?? null} tierColor={entry.tierColor ?? null} />
-                      <span className="text-primary font-black text-sm font-mono w-12 text-right">{entry.rating}</span>
+                {topPlayers.length ? topPlayers.map((entry, i) => {
+                  const rankColor = RANK_COLOR[entry.rankEarned] ?? "#94a3b8";
+                  return (
+                    <div key={entry.resultId}
+                      className={`flex items-center gap-3 px-5 py-3 hover:bg-white/4 transition-colors
+                        ${i === 0 ? "bg-gradient-to-r from-yellow-500/8 to-transparent" : ""}`}>
+                      <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black
+                        ${i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]"
+                        : i === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-black"
+                        : i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-black"
+                        : "bg-white/8 text-white/60"}`}>
+                        {i + 1}
+                      </span>
+                      <img
+                        src={`https://mc-heads.net/body/${entry.username}/48`}
+                        alt={entry.username}
+                        className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-md"
+                        onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.username}/32`; }}
+                      />
+                      <span className="flex-1 font-bold text-sm text-white min-w-0 truncate">{entry.username}</span>
+                      <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                        <span className="text-[11px] font-black" style={{ color: rankColor }}>{abbreviateRank(entry.rankEarned)}</span>
+                        <span className="text-[10px] text-muted-foreground/40">{entry.gamemode}</span>
+                      </div>
                     </div>
-                  </div>
-                )) : (
+                  );
+                }) : (
                   <div className="px-5 py-8 text-center text-muted-foreground text-sm">No ranked players yet.</div>
                 )}
               </div>
               <div className="px-5 py-3 bg-black/20 border-t border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <Users className="w-3 h-3" />
-                  {stats?.totalPlayers ?? 0} total players
+                  {tierResults.length} results
                 </div>
-                <Link href="/players" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
-                  Browse All
+                <Link href="/leaderboard" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
+                  Full Board
                 </Link>
               </div>
             </div>

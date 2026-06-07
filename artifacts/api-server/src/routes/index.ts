@@ -11,6 +11,7 @@ import testsRouter from "./tests";
 import announcementsRouter from "./announcements";
 import adminRouter from "./admin";
 import auditRouter from "./audit";
+import tierlistRouter from "./tierlist";
 import { generalLimiter, authLimiter, adminLimiter } from "../middleware/rate-limit";
 
 const router: IRouter = Router();
@@ -31,5 +32,6 @@ router.use(testsRouter);
 router.use(announcementsRouter);
 router.use(adminRouter);
 router.use(auditRouter);
+router.use(tierlistRouter);
 
 export default router;
