@@ -401,4 +401,29 @@ router.post("/admin/players/:id/change-tier", async (req, res): Promise<void> =>
   res.json({ id: player.id, username: player.username, uuid: player.uuid, region: player.region, country: player.country, userId: player.userId, createdAt: player.createdAt.toISOString(), updatedAt: player.updatedAt.toISOString() });
 });
 
+// ── REMOVE ALL TIERS (owner only) ──────────────────────────────────────────────
+router.delete("/admin/players/:id/ratings", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid player id" }); return; }
+
+  const sessionUserId = (req.session as any)?.userId as number | undefined;
+  if (!sessionUserId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, sessionUserId));
+  if (!actor || actor.role !== "owner") { res.status(403).json({ error: "Owner only" }); return; }
+
+  const [player] = await db.select().from(playersTable).where(eq(playersTable.id, id));
+  if (!player) { res.status(404).json({ error: "Player not found" }); return; }
+
+  await db.delete(playerRatingsTable).where(eq(playerRatingsTable.playerId, id));
+
+  db.insert(auditLogsTable).values({
+    actorId: sessionUserId,
+    actorName: actor.displayName ?? actor.username ?? "Owner",
+    action: "tier_removed",
+    details: { playerUsername: player.username, playerId: player.id },
+  }).catch(() => {});
+
+  res.json({ success: true, message: `Removed all tiers for "${player.username}"` });
+});
+
 export default router;

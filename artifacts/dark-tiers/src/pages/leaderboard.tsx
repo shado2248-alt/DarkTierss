@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, X, Swords } from "lucide-react";
+import { Search, Plus, X, Swords, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GamemodeIcon, trophyImg } from "@/lib/gamemode-icons";
 import { fetchTierResults, deduplicateResults, abbreviateRank, RANK_SCORE } from "@/lib/tierlist-api";
@@ -182,23 +182,57 @@ function RankBadge({ rank }: { rank: number }) {
   return <span className={`${base} text-muted-foreground/50`}>{rank}.</span>;
 }
 
+/* ── Rank card styles ────────────────────────────────────── */
+const RANK_CARD_STYLE: Record<number, { style: React.CSSProperties; className: string }> = {
+  1: {
+    style: {
+      background: "linear-gradient(120deg, rgba(251,191,36,0.18) 0%, rgba(161,117,0,0.08) 100%)",
+      borderColor: "rgba(251,191,36,0.55)",
+      boxShadow: "inset 0 1px 0 rgba(251,191,36,0.15)",
+    },
+    className: "border",
+  },
+  2: {
+    style: {
+      background: "linear-gradient(120deg, rgba(203,213,225,0.16) 0%, rgba(100,116,139,0.07) 100%)",
+      borderColor: "rgba(203,213,225,0.45)",
+      boxShadow: "inset 0 1px 0 rgba(203,213,225,0.12)",
+    },
+    className: "border",
+  },
+  3: {
+    style: {
+      background: "linear-gradient(120deg, rgba(180,83,9,0.20) 0%, rgba(120,53,15,0.08) 100%)",
+      borderColor: "rgba(217,119,6,0.50)",
+      boxShadow: "inset 0 1px 0 rgba(217,119,6,0.15)",
+    },
+    className: "border",
+  },
+};
+
 /* ── Overall player card ─────────────────────────────────── */
 function PlayerCard({
   player,
   gamemodes,
+  isOwner,
+  onRemoveTier,
 }: {
   player: OverallPlayer;
   gamemodes: Array<{ id: number; name: string }>;
+  isOwner: boolean;
+  onRemoveTier: (playerId: number, username: string) => void;
 }) {
   const rankedGms = player.gamemodes.filter(g => g.tierName);
-  const rankBg =
-    player.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30"
-    : player.rank === 2 ? "bg-slate-400/10 border-slate-400/20"
-    : player.rank === 3 ? "bg-orange-500/10 border-orange-500/20"
-    : "bg-card border-border/40";
+  const medal = RANK_CARD_STYLE[player.rank];
+  const isDbPlayer = player.playerId > 0;
 
   return (
-    <div className={`flex rounded-xl overflow-hidden border ${rankBg} transition-all hover:border-primary/40`}>
+    <div
+      className={`relative flex rounded-xl overflow-hidden transition-all hover:border-primary/40 ${
+        medal ? medal.className : "border bg-card border-border/40"
+      }`}
+      style={medal?.style}
+    >
       {/* Left — rank + skin */}
       <div className="flex flex-col items-center justify-center gap-2 px-4 py-4 min-w-[88px] bg-black/20 flex-shrink-0">
         <RankBadge rank={player.rank} />
@@ -242,6 +276,17 @@ function PlayerCard({
           </div>
         )}
       </div>
+
+      {/* Owner — remove tier button */}
+      {isOwner && isDbPlayer && (
+        <button
+          onClick={() => onRemoveTier(player.playerId, player.username)}
+          title="Remove tier"
+          className="absolute top-2.5 right-2.5 w-7 h-7 rounded-lg flex items-center justify-center text-red-400/50 hover:text-red-400 hover:bg-red-500/15 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -305,9 +350,13 @@ export default function Leaderboard() {
   const [view, setView] = useState<string>("overall");
   const [search, setSearch] = useState("");
   const [postMatchOpen, setPostMatchOpen] = useState(false);
+  const [removingTier, setRemovingTier] = useState<{ playerId: number; username: string } | null>(null);
+  const [removeLoading, setRemoveLoading] = useState(false);
+  const qc = useQueryClient();
 
   const { data: me } = useGetMe();
   const myRole = (me as any)?.role ?? "user";
+  const isOwner = myRole === "owner";
 
   const { data: gamemodes } = useListGamemodes();
 
@@ -390,6 +439,22 @@ export default function Leaderboard() {
       totalMatches: 0,
     }));
 
+  const handleRemoveTier = (playerId: number, username: string) => {
+    setRemovingTier({ playerId, username });
+  };
+
+  const confirmRemoveTier = async () => {
+    if (!removingTier) return;
+    setRemoveLoading(true);
+    try {
+      await fetch(`/api/admin/players/${removingTier.playerId}/ratings`, { method: "DELETE" });
+      qc.invalidateQueries();
+    } finally {
+      setRemoveLoading(false);
+      setRemovingTier(null);
+    }
+  };
+
   const tabs = [
     { id: "overall", label: "Overall" },
     ...(gamemodes?.map(g => ({ id: g.id.toString(), label: g.name })) ?? []),
@@ -462,6 +527,49 @@ export default function Leaderboard() {
           {postMatchOpen && <PostMatchModal onClose={() => setPostMatchOpen(false)} />}
         </AnimatePresence>
 
+        {/* Owner — Remove Tier confirm dialog */}
+        <AnimatePresence>
+          {removingTier && (
+            <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !removeLoading && setRemovingTier(null)} />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.18 }}
+                className="relative z-10 glass-card border border-red-500/30 rounded-2xl p-6 w-full max-w-sm"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <Trash2 className="w-4 h-4 text-red-400" />
+                  <h2 className="text-base font-black text-white">Remove Tier</h2>
+                </div>
+                <p className="text-sm text-muted-foreground mb-5">
+                  Remove all tier rankings for <span className="text-white font-bold">{removingTier.username}</span>? This cannot be undone.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRemovingTier(null)}
+                    disabled={removeLoading}
+                    className="flex-1 text-muted-foreground"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={confirmRemoveTier}
+                    disabled={removeLoading}
+                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30"
+                  >
+                    {removeLoading ? "Removing..." : "Remove"}
+                  </Button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         {/* Gamemode tabs */}
         <div className="flex items-end overflow-x-auto scrollbar-none gap-0.5">
           {tabs.map((tab) => {
@@ -512,6 +620,8 @@ export default function Leaderboard() {
                       key={player.playerId}
                       player={player}
                       gamemodes={gamemodes?.map(g => ({ id: g.id, name: g.name })) ?? []}
+                      isOwner={isOwner}
+                      onRemoveTier={handleRemoveTier}
                     />
                   ))}
                 </div>
