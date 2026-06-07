@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useGetStats, useGetRecentActivity, useGetLeaderboard, useGetSettings } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { TierBadge } from "../components/ui/tier-badge";
@@ -196,6 +196,69 @@ const GM_ICON: Record<string, React.ReactNode> = {
   mace:    <Swords className="w-5 h-5" />,
 };
 
+/* ─── Mouse spotlight hook ───────────────────────────────── */
+function useMouseSpotlight(ref: React.RefObject<HTMLElement | null>) {
+  const [pos, setPos] = useState({ x: -9999, y: -9999 });
+  const handleMove = useCallback((e: MouseEvent) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    setPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, [ref]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("mousemove", handleMove);
+    return () => el.removeEventListener("mousemove", handleMove);
+  }, [ref, handleMove]);
+  return pos;
+}
+
+/* ─── Floating orb ───────────────────────────────────────── */
+function FloatingOrb({ x, y, size, color, dur, delay }: {
+  x: string; y: string; size: number; color: string; dur: number; delay: number;
+}) {
+  return (
+    <motion.div
+      className="absolute rounded-full pointer-events-none blur-3xl"
+      style={{ left: x, top: y, width: size, height: size, background: color }}
+      animate={{ y: [0, -30, 0], x: [0, 15, 0], opacity: [0.35, 0.65, 0.35] }}
+      transition={{ duration: dur, repeat: Infinity, delay, ease: "easeInOut" }}
+    />
+  );
+}
+
+/* ─── Word-stagger title ─────────────────────────────────── */
+function AnimatedTitle({ lines }: { lines: { words: { text: string; gradient?: boolean }[] }[] }) {
+  const container = {
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
+  };
+  const word = {
+    hidden: { opacity: 0, y: 28, rotateX: -20 },
+    visible: { opacity: 1, y: 0, rotateX: 0, transition: { duration: 0.55, ease: [0.25, 0.1, 0.25, 1] as const } },
+  };
+  return (
+    <motion.h1
+      variants={container} initial="hidden" animate="visible"
+      className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[0.95]"
+      style={{ perspective: "600px" }}
+    >
+      {lines.map((line, li) => (
+        <div key={li} className="flex flex-wrap gap-x-4">
+          {line.words.map((w, wi) => (
+            <motion.span key={wi} variants={word}
+              className={w.gradient
+                ? "text-transparent bg-clip-text bg-gradient-to-r from-primary via-violet-400 to-purple-300 inline-block"
+                : "text-white inline-block"}>
+              {w.text}
+            </motion.span>
+          ))}
+        </div>
+      ))}
+    </motion.h1>
+  );
+}
+
 /* ─── Reveal wrapper ─────────────────────────────────────── */
 function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const ref = useRef(null);
@@ -220,23 +283,47 @@ export default function Home() {
   const discordUrl  = settings?.discordUrl || "https://discord.gg/mWHwDR8bg7";
   const recentMatches = activity?.recentMatches ?? [];
   const [showInfo, setShowInfo] = useState(false);
+  const heroRef = useRef<HTMLElement | null>(null);
+  const spotlight = useMouseSpotlight(heroRef);
 
   return (
     <div className="min-h-screen text-foreground overflow-x-hidden">
 
       {/* ══ HERO ════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden">
-        {/* Background */}
+      <section ref={heroRef} className="relative overflow-hidden">
+        {/* Background layers */}
         <div className="absolute inset-0 pointer-events-none">
+          {/* Base gradient */}
           <div className="absolute inset-0" style={{
             backgroundImage: `radial-gradient(ellipse 80% 70% at 50% -5%, rgba(109,40,217,0.28), transparent),
                               radial-gradient(ellipse 40% 40% at 95% 90%, rgba(88,28,220,0.12), transparent)`
           }} />
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(1px 1px at center, rgba(255,255,255,0.032) 0%, transparent 0%)`,
+
+          {/* Animated dot grid */}
+          <motion.div className="absolute inset-0" style={{
+            backgroundImage: `radial-gradient(1px 1px at center, rgba(255,255,255,0.045) 0%, transparent 0%)`,
             backgroundSize: "28px 28px"
-          }} />
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
+          }}
+            animate={{ opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          />
+
+          {/* Floating orbs */}
+          <FloatingOrb x="60%" y="10%"  size={320} color="rgba(109,40,217,0.18)"  dur={7}   delay={0} />
+          <FloatingOrb x="80%" y="50%"  size={200} color="rgba(139,92,246,0.14)"  dur={5.5} delay={1} />
+          <FloatingOrb x="5%"  y="30%"  size={240} color="rgba(88,28,220,0.12)"   dur={8}   delay={0.7} />
+          <FloatingOrb x="40%" y="70%"  size={180} color="rgba(167,139,250,0.10)" dur={6}   delay={2} />
+          <FloatingOrb x="15%" y="-10%" size={260} color="rgba(109,40,217,0.10)"  dur={9}   delay={1.5} />
+
+          {/* Mouse spotlight */}
+          <div
+            className="absolute inset-0 pointer-events-none transition-all duration-100"
+            style={{
+              background: `radial-gradient(400px circle at ${spotlight.x}px ${spotlight.y}px, rgba(139,92,246,0.07), transparent 70%)`,
+            }}
+          />
+
+          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background to-transparent" />
         </div>
 
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 pt-16 pb-14 md:pt-20 md:pb-16">
@@ -244,24 +331,24 @@ export default function Home() {
             {/* Eyebrow */}
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
               className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-widest">
+              <motion.span
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-widest"
+                animate={{ boxShadow: ["0 0 0px rgba(139,92,246,0)", "0 0 12px rgba(139,92,246,0.4)", "0 0 0px rgba(139,92,246,0)"] }}
+                transition={{ duration: 3, repeat: Infinity }}
+              >
                 <Zap className="w-3 h-3" />Season 1 Active
-              </span>
+              </motion.span>
               <span className="flex items-center gap-1.5 text-[11px] font-bold text-green-400 uppercase tracking-widest">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />Live
               </span>
             </motion.div>
 
-            {/* Title */}
-            <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.08, ease: EASE }}
-              className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[0.95]">
-              <span className="text-white">The</span>{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-purple-300">#1 Elite</span>
-              <br />
-              <span className="text-white">Minecraft</span>
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-violet-400 to-purple-300">PvP Tierlist</span>
-            </motion.h1>
+            {/* Word-stagger animated title */}
+            <AnimatedTitle lines={[
+              { words: [{ text: "The" }, { text: "#1 Elite", gradient: true }] },
+              { words: [{ text: "Minecraft" }] },
+              { words: [{ text: "PvP Tierlist", gradient: true }] },
+            ]} />
 
             {/* Subtitle */}
             <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2, ease: EASE }}
@@ -402,14 +489,28 @@ export default function Home() {
             { num: "04", icon: <Trophy className="w-8 h-8" />, title: "Receive Your Tier", desc: "Your official rank is assigned and published on the global leaderboard." },
           ].map((step, i) => (
             <Reveal key={step.num} delay={i * 0.07}>
-              <div className="glass-card border border-white/10 rounded-2xl p-6 h-full hover:border-primary/30 transition-colors">
-                <div className="text-4xl font-black text-white/8 mb-4 font-mono">{step.num}</div>
-                <div className="w-14 h-14 rounded-2xl bg-primary/12 border border-primary/25 flex items-center justify-center text-primary mb-4">
+              <motion.div
+                className="glass-card border border-white/10 rounded-2xl p-6 h-full cursor-default relative overflow-hidden group"
+                whileHover={{ y: -4, borderColor: "rgba(139,92,246,0.4)" }}
+                transition={{ duration: 0.2, ease: EASE }}
+              >
+                {/* Hover glow */}
+                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  style={{ background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139,92,246,0.08), transparent)" }} />
+                <motion.div
+                  className="text-4xl font-black text-white/8 mb-4 font-mono"
+                  whileHover={{ color: "rgba(139,92,246,0.25)" }}
+                >{step.num}</motion.div>
+                <motion.div
+                  className="w-14 h-14 rounded-2xl bg-primary/12 border border-primary/25 flex items-center justify-center text-primary mb-4"
+                  whileHover={{ scale: 1.1, boxShadow: "0 0 20px rgba(139,92,246,0.4)" }}
+                  transition={{ duration: 0.2 }}
+                >
                   {step.icon}
-                </div>
+                </motion.div>
                 <h3 className="font-black text-white text-base mb-2">{step.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
-              </div>
+              </motion.div>
             </Reveal>
           ))}
         </div>
@@ -496,6 +597,81 @@ export default function Home() {
               </div>
             </div>
 
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ══ REGISTER CTA ════════════════════════════════════════ */}
+      <section className="relative overflow-hidden py-20 px-4">
+        {/* Animated background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `radial-gradient(ellipse 60% 80% at 50% 50%, rgba(109,40,217,0.15), transparent)`
+          }} />
+          <motion.div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full"
+            style={{ background: "rgba(109,40,217,0.06)" }}
+            animate={{ scale: [1, 1.15, 1], opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
+
+        <Reveal>
+          <div className="relative max-w-2xl mx-auto text-center flex flex-col items-center gap-6">
+            {/* Animated icon */}
+            <motion.div
+              className="w-20 h-20 rounded-3xl bg-primary/15 border border-primary/30 flex items-center justify-center"
+              animate={{
+                boxShadow: ["0 0 0px rgba(139,92,246,0.2)", "0 0 40px rgba(139,92,246,0.5)", "0 0 0px rgba(139,92,246,0.2)"]
+              }}
+              transition={{ duration: 3, repeat: Infinity }}
+            >
+              <Trophy className="w-10 h-10 text-primary" />
+            </motion.div>
+
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-3">Get Ranked Today</div>
+              <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-3">
+                Ready to prove your skill?
+              </h2>
+              <p className="text-muted-foreground text-base leading-relaxed max-w-md mx-auto">
+                Create your free account with Discord, get tested by certified players, and claim your official tier on the global leaderboard.
+              </p>
+            </div>
+
+            {/* Feature pills */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              {["Free to join", "8 Gamemodes", "Official ELO ranking", "Minecraft avatars"].map((f, i) => (
+                <motion.span key={f}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.06, duration: 0.3, ease: EASE }}
+                  className="text-xs font-semibold text-primary/80 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-full"
+                >
+                  {f}
+                </motion.span>
+              ))}
+            </div>
+
+            {/* CTA buttons */}
+            <div className="flex flex-wrap gap-3 justify-center">
+              <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.15 }}>
+                <Link href="/login"
+                  className="inline-flex items-center gap-2.5 bg-primary hover:bg-primary/90 text-white px-8 py-4 rounded-xl font-black text-base transition-all shadow-[0_0_30px_rgba(139,92,246,0.5)] hover:shadow-[0_0_50px_rgba(139,92,246,0.7)]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.114 18.1.133 18.113a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+                  </svg>
+                  Register with Discord
+                </Link>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.15 }}>
+                <Link href="/leaderboard"
+                  className="inline-flex items-center gap-2 border border-white/15 text-white/70 hover:text-white hover:border-white/30 px-8 py-4 rounded-xl font-bold text-base transition-all hover:bg-white/5">
+                  Browse Rankings <ChevronRight className="w-4 h-4" />
+                </Link>
+              </motion.div>
+            </div>
           </div>
         </Reveal>
       </section>

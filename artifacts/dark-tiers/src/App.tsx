@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { Navbar } from "@/components/layout/Navbar";
+import { WelcomeBanner } from "@/components/ui/welcome-banner";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Leaderboard from "@/pages/leaderboard";
@@ -36,6 +37,7 @@ function Router() {
   return (
     <div className="min-h-[100dvh] bg-background text-foreground flex flex-col font-sans">
       <Navbar />
+      <WelcomeBanner />
       <main className="flex-1 flex flex-col">
         <AnimatePresence>
           <motion.div
