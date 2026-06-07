@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useGetStats, useGetRecentActivity, useGetLeaderboard, useGetSettings } from "@workspace/api-client-react";
+import { useGetStats, useGetRecentActivity, useGetLeaderboard, useGetSettings, useGetMe } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { TierBadge } from "../components/ui/tier-badge";
 import { motion, useInView, AnimatePresence } from "framer-motion";
@@ -277,11 +277,13 @@ export default function Home() {
   const { data: activity }     = useGetRecentActivity();
   const { data: leaderboard }  = useGetLeaderboard({ limit: 5 });
   const { data: settingsData } = useGetSettings();
+  const { data: me, isLoading: meLoading } = useGetMe();
 
   const settings    = settingsData as any;
   const serverIp    = settings?.serverIp  || "";
   const discordUrl  = settings?.discordUrl || "https://discord.gg/mWHwDR8bg7";
   const recentMatches = activity?.recentMatches ?? [];
+  const isLoggedIn  = !meLoading && !!me;
   const [showInfo, setShowInfo] = useState(false);
   const heroRef = useRef<HTMLElement | null>(null);
   const spotlight = useMouseSpotlight(heroRef);
@@ -327,7 +329,8 @@ export default function Home() {
         </div>
 
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 pt-16 pb-14 md:pt-20 md:pb-16">
-          <div className="flex flex-col gap-6 max-w-2xl">
+          <div className="flex flex-col lg:flex-row items-start gap-10 lg:gap-16">
+          <div className="flex flex-col gap-6 max-w-2xl flex-1">
             {/* Eyebrow */}
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
               className="flex items-center gap-3">
@@ -385,6 +388,44 @@ export default function Home() {
               <div className="w-px h-10 bg-white/10" />
               <Counter value={8} label="Game Modes" />
             </motion.div>
+          </div>
+
+          {/* ── Hero right: Server IP image card ── */}
+          <motion.div
+            initial={{ opacity: 0, x: 40, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.45, ease: EASE }}
+            className="hidden lg:flex flex-col items-center gap-4 flex-shrink-0 self-center"
+          >
+            {/* Glowing frame around the image */}
+            <motion.div
+              className="relative rounded-2xl overflow-hidden border border-primary/30 shadow-[0_0_60px_rgba(139,92,246,0.25)] hover:shadow-[0_0_80px_rgba(139,92,246,0.4)] transition-shadow duration-500"
+              whileHover={{ scale: 1.03, y: -4 }}
+              transition={{ duration: 0.25 }}
+            >
+              <img
+                src="/server-ip.jpg"
+                alt="Server IP: PrimePvP.qzz.io"
+                className="w-56 h-auto object-contain"
+              />
+              {/* Overlay glow effect */}
+              <div className="absolute inset-0 pointer-events-none rounded-2xl"
+                style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.08) 0%, transparent 60%)" }} />
+            </motion.div>
+            {/* Label below */}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
+              className="flex items-center gap-2 text-[11px] text-muted-foreground font-semibold uppercase tracking-widest"
+            >
+              <motion.span
+                className="w-1.5 h-1.5 rounded-full bg-green-400"
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              />
+              Server Online
+            </motion.div>
+          </motion.div>
+
           </div>
         </div>
       </section>
@@ -601,8 +642,8 @@ export default function Home() {
         </Reveal>
       </section>
 
-      {/* ══ REGISTER CTA ════════════════════════════════════════ */}
-      <section className="relative overflow-hidden py-20 px-4">
+      {/* ══ REGISTER CTA (only for visitors) ═══════════════════ */}
+      {!isLoggedIn && <section className="relative overflow-hidden py-20 px-4">
         {/* Animated background */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0" style={{
@@ -674,7 +715,7 @@ export default function Home() {
             </div>
           </div>
         </Reveal>
-      </section>
+      </section>}
 
       {/* ══ INFO MODAL ══════════════════════════════════════════ */}
       {showInfo && <InfoModal onClose={() => setShowInfo(false)} discordUrl={discordUrl} />}
