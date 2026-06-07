@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, matchesTable, playersTable, gamemodesTable, playerRatingsTable, tierPromotionsTable, tiersTable, auditLogsTable } from "@workspace/db";
+import { db, matchesTable, playersTable, gamemodesTable, playerRatingsTable, tierPromotionsTable, tiersTable, auditLogsTable, usersTable } from "@workspace/db";
 import { eq, desc, sql, and } from "drizzle-orm";
 import {
   ListMatchesQueryParams,
@@ -168,7 +168,6 @@ router.post("/matches", async (req, res): Promise<void> => {
 
   let actorName = "Unknown";
   if (actorId) {
-    const { usersTable } = await import("@workspace/db");
     const [actor] = await db.select({ username: usersTable.username, displayName: usersTable.displayName }).from(usersTable).where(eq(usersTable.id, actorId));
     if (actor) actorName = actor.displayName ?? actor.username ?? "Unknown";
   }

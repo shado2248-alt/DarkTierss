@@ -1417,15 +1417,54 @@ function SettingsTab() {
       </form>
 
       {/* Discord Webhook Tutorial */}
-      <div className="glass-card rounded-xl border border-white/8 p-5 flex flex-col gap-3">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">How to set up Discord Webhook</p>
-        <ol className="text-xs text-muted-foreground flex flex-col gap-1.5 list-decimal list-inside">
-          <li>Open your Discord server, go to <span className="text-white font-semibold">Server Settings</span> → <span className="text-white font-semibold">Integrations</span> → <span className="text-white font-semibold">Webhooks</span></li>
-          <li>Click <span className="text-white font-semibold">New Webhook</span>, give it a name (e.g. "Tier Promotions"), choose the channel</li>
-          <li>Click <span className="text-white font-semibold">Copy Webhook URL</span></li>
-          <li>Paste it in the field above and hit Save</li>
-        </ol>
-        <p className="text-[10px] text-muted-foreground/50">Every time a player gets promoted to a new tier via a match, a message will be auto-posted to that Discord channel.</p>
+      <div className="flex flex-col gap-4">
+        {/* What triggers */}
+        <div className="glass-card rounded-xl border border-[#5865F2]/25 bg-[#5865F2]/5 p-5 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#5865F2"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.114 18.1.133 18.113a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+            <p className="text-xs font-black uppercase tracking-widest text-[#7289da]">What gets posted automatically</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {[
+              { color: "bg-green-500", label: "Match Recorded", desc: "Winner, loser, gamemode, and ELO change (+18 / -18)" },
+              { color: "bg-violet-500", label: "Tier Promotion", desc: "Player name, old tier → new tier, new rating" },
+              { color: "bg-sky-500", label: "Announcement Posted", desc: "Title, content preview, and author name" },
+            ].map(item => (
+              <div key={item.label} className="flex items-start gap-3 bg-black/30 rounded-lg px-3 py-2.5">
+                <span className={`w-2 h-2 rounded-full ${item.color} flex-shrink-0 mt-1.5`} />
+                <div>
+                  <div className="text-xs font-bold text-white">{item.label}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Step by step */}
+        <div className="glass-card rounded-xl border border-white/8 p-5 flex flex-col gap-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">How to create a Discord Webhook (step by step)</p>
+          <div className="flex flex-col gap-3">
+            {[
+              { n: "1", title: "Open your Discord server", body: <>Right-click your server icon → <span className="text-white font-semibold">Server Settings</span></> },
+              { n: "2", title: "Go to Integrations", body: <>In the left sidebar click <span className="text-white font-semibold">Integrations</span>, then click <span className="text-white font-semibold">Webhooks</span></> },
+              { n: "3", title: "Create a new webhook", body: <>Click <span className="text-white font-semibold">New Webhook</span>. Give it a name like <span className="text-primary font-mono text-xs">DARK TIERS</span> and choose which channel to post in (e.g. #match-results)</> },
+              { n: "4", title: "Copy the URL", body: <>Click <span className="text-white font-semibold">Copy Webhook URL</span> — it looks like: <span className="text-primary font-mono text-[10px] break-all">https://discord.com/api/webhooks/123.../abc...</span></> },
+              { n: "5", title: "Paste & Save", body: <>Paste it in the <span className="text-white font-semibold">Discord Webhook URL</span> field above, then click <span className="text-white font-semibold">Save Settings</span>. Done — all events will now post instantly.</> },
+            ].map(step => (
+              <div key={step.n} className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-[10px] font-black text-primary">{step.n}</span>
+                <div>
+                  <div className="text-xs font-bold text-white mb-0.5">{step.title}</div>
+                  <div className="text-[11px] text-muted-foreground leading-relaxed">{step.body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 bg-yellow-500/8 border border-yellow-500/20 rounded-lg px-3 py-2.5 text-[11px] text-yellow-400/80">
+            Tip: You can create one webhook per channel — e.g. one for match results and another for announcements — but the URL field only supports one at a time.
+          </div>
+        </div>
       </div>
     </div>
   );
