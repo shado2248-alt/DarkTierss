@@ -86,6 +86,10 @@ router.patch("/admin/users/:id", async (req, res): Promise<void> => {
 
   if (parsed.data.role != null) {
     const targetRole = parsed.data.role as string;
+    // Owners cannot change their own role
+    if (requesterRole === "owner" && params.data.id === session.userId) {
+      res.status(403).json({ error: "Owners cannot change their own role." }); return;
+    }
     if (requesterRole === "owner") {
       updates.role = targetRole;
     } else if (requesterRole === "admin") {
