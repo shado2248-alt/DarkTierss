@@ -9,10 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Plus, X, Swords } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GamemodeIcon, trophyImg } from "@/lib/gamemode-icons";
-import { fetchTierResults, deduplicateResults, abbreviateRank } from "@/lib/tierlist-api";
+import { fetchTierResults, deduplicateResults, abbreviateRank, RANK_SCORE } from "@/lib/tierlist-api";
 
 const ROLE_RANK: Record<string, number> = { user: 0, tester: 1, moderator: 2, admin: 3, owner: 4 };
 function isStaff(role: string) { return (ROLE_RANK[role] ?? 0) >= 1; }
+
+const REGION_ABBR: Record<string, string> = {
+  "Asia": "AS", "North America": "NA", "Europe": "EU",
+  "Oceania": "OC", "South America": "SA",
+};
 
 function PostMatchModal({ onClose }: { onClose: () => void }) {
   const { data: players } = useListPlayers({ limit: 200 });
@@ -142,11 +147,6 @@ const REGION_CLS: Record<string, string> = {
   SA: "text-orange-400 border-orange-500/50 bg-orange-500/10",
 };
 
-const REGION_ABBR: Record<string, string> = {
-  "Asia": "AS", "North America": "NA", "Europe": "EU",
-  "Oceania": "OC", "South America": "SA",
-};
-
 const TIER_NUM_STYLE: Record<number, { header: string; border: string; trophy: string }> = {
   1: { header: "text-yellow-400",  border: "border-yellow-500/30",  trophy: "#facc15" },
   2: { header: "text-slate-300",   border: "border-slate-400/30",   trophy: "#94a3b8" },
@@ -269,7 +269,7 @@ function TierColumn({
           const isLT = entry.tierName?.startsWith("LT") ?? false;
           return (
             <div
-              key={entry.playerId}
+              key={`${entry.playerId}-${entry.username}`}
               className={`flex items-center gap-2 px-3 py-2 hover:bg-white/[0.03] transition-colors border-l-2
                 ${isHT ? "border-green-500/60" : isLT ? "border-red-500/60" : "border-transparent"}`}
             >
@@ -311,6 +311,7 @@ export default function Leaderboard() {
 
   const { data: gamemodes } = useListGamemodes();
 
+  /* Internal DB data */
   const { data: overallData, isLoading: overallLoading } = useQuery({
     queryKey: ["leaderboard-overall"],
     queryFn: async () => {
@@ -321,26 +322,63 @@ export default function Leaderboard() {
     enabled: view === "overall",
   });
 
-  const { data: rawTierlist = [], isLoading: tierlistLoading } = useQuery({
+  const gamemodeId = view !== "overall" ? parseInt(view) : undefined;
+  const { data: tableData, isLoading: tableLoading } = useGetLeaderboard(
+    { gamemodeId, sortBy: "rating", limit: 500 },
+    { query: { enabled: view !== "overall" } as any }
+  );
+
+  /* External API — always fetched, 10s polling */
+  const { data: rawTierlist = [] } = useQuery({
     queryKey: ["tierlist-external"],
     queryFn: fetchTierResults,
     refetchInterval: 10_000,
     staleTime: 9_000,
-    enabled: view === "tierlist",
   });
 
-  const tierlistEntries: LeaderboardEntry[] = deduplicateResults(rawTierlist)
-    .sort((a, b) => {
-      const RANK_SCORE: Record<string, number> = {
-        "High Tier 1": 10, "Low Tier 1": 9, "High Tier 2": 8, "Low Tier 2": 7,
-        "High Tier 3": 6, "Low Tier 3": 5, "High Tier 4": 4, "Low Tier 4": 3,
-        "High Tier 5": 2, "Low Tier 5": 1,
-      };
-      return (RANK_SCORE[b.rankEarned] ?? 0) - (RANK_SCORE[a.rankEarned] ?? 0);
-    })
+  /* Convert external results → OverallPlayer cards for Overall tab */
+  const externalOverallPlayers: OverallPlayer[] = (() => {
+    if (!gamemodes) return [];
+    const deduped = deduplicateResults(rawTierlist);
+    const byPlayer = new Map<string, typeof deduped>();
+    for (const r of deduped) {
+      const key = r.username.toLowerCase();
+      if (!byPlayer.has(key)) byPlayer.set(key, []);
+      byPlayer.get(key)!.push(r);
+    }
+    return Array.from(byPlayer.values())
+      .map((results, i) => {
+        const first = results[0];
+        const bestScore = Math.max(...results.map(r => RANK_SCORE[r.rankEarned] ?? 0));
+        return {
+          rank: 0,
+          playerId: -(i + 1),
+          username: first.username,
+          uuid: first.username,
+          region: REGION_ABBR[first.region] ?? first.region ?? null,
+          overallScore: bestScore,
+          rankedGamemodes: results.length,
+          gamemodes: results.map(r => ({
+            gamemodeId: gamemodes.find(g => g.name.toLowerCase() === r.gamemode.toLowerCase())?.id ?? 0,
+            gamemodeName: r.gamemode,
+            gamemodeSlug: r.gamemode.toLowerCase(),
+            tierName: abbreviateRank(r.rankEarned),
+            tierColor: null,
+            rating: null,
+          })),
+        };
+      })
+      .sort((a, b) => b.overallScore - a.overallScore);
+  })();
+
+  /* Convert external results → LeaderboardEntry rows for per-gamemode tabs */
+  const currentGamemodeName = gamemodes?.find(g => g.id.toString() === view)?.name ?? "";
+  const externalGmEntries: LeaderboardEntry[] = deduplicateResults(rawTierlist)
+    .filter(r => r.gamemode.toLowerCase() === currentGamemodeName.toLowerCase())
+    .sort((a, b) => (RANK_SCORE[b.rankEarned] ?? 0) - (RANK_SCORE[a.rankEarned] ?? 0))
     .map((r, i) => ({
       rank: i + 1,
-      playerId: i,
+      playerId: -(i + 1),
       username: r.username,
       uuid: r.username,
       region: REGION_ABBR[r.region] ?? r.region ?? null,
@@ -352,31 +390,33 @@ export default function Leaderboard() {
       totalMatches: 0,
     }));
 
-  const gamemodeId = view !== "overall" && view !== "tierlist" ? parseInt(view) : undefined;
-  const { data: tableData, isLoading: tableLoading } = useGetLeaderboard(
-    { gamemodeId, sortBy: "rating", limit: 500 },
-    { query: { enabled: view !== "overall" && view !== "tierlist" } as any }
-  );
-
   const tabs = [
     { id: "overall", label: "Overall" },
-    { id: "tierlist", label: "Tier List" },
     ...(gamemodes?.map(g => ({ id: g.id.toString(), label: g.name })) ?? []),
   ];
 
-  const isLoading = view === "overall" ? overallLoading : view === "tierlist" ? tierlistLoading : tableLoading;
+  const isLoading = view === "overall" ? overallLoading : tableLoading;
 
-  const filteredOverall = (overallData?.players ?? []).filter(p =>
-    !search || p.username.toLowerCase().includes(search.toLowerCase())
-  );
+  /* Merge DB + external for Overall tab, deduplicated by username */
+  const dbOverallPlayers = overallData?.players ?? [];
+  const dbUsernames = new Set(dbOverallPlayers.map(p => p.username.toLowerCase()));
+  const mergedOverall = [
+    ...dbOverallPlayers,
+    ...externalOverallPlayers.filter(p => !dbUsernames.has(p.username.toLowerCase())),
+  ].map((p, i) => ({ ...p, rank: i + 1 }))
+    .filter(p => !search || p.username.toLowerCase().includes(search.toLowerCase()));
 
+  /* Merge DB + external for per-gamemode tab, deduplicated by username */
   const gmEntries = (tableData?.entries ?? []) as unknown as LeaderboardEntry[];
-  const filteredGm = gmEntries.filter(e =>
-    !search || e.username.toLowerCase().includes(search.toLowerCase())
-  );
+  const dbGmUsernames = new Set(gmEntries.map(e => e.username.toLowerCase()));
+  const mergedGm = [
+    ...gmEntries,
+    ...externalGmEntries.filter(e => !dbGmUsernames.has(e.username.toLowerCase())),
+  ].filter(e => !search || e.username.toLowerCase().includes(search.toLowerCase()));
+
   const tierCols = [1, 2, 3, 4, 5].map(n => ({
     tierNum: n,
-    entries: filteredGm.filter(e => tierNumber(e.tierName) === n),
+    entries: mergedGm.filter(e => tierNumber(e.tierName) === n),
   })).filter(c => c.entries.length > 0);
 
   const activeIdx = tabs.findIndex(t => t.id === view);
@@ -391,8 +431,8 @@ export default function Leaderboard() {
             <h1 className="text-2xl font-black text-white tracking-tight">Rankings</h1>
             <p className="text-xs text-muted-foreground/60 mt-1">
               {view === "overall"
-                ? `${overallData?.total ?? 0} players ranked across all modes`
-                : `${tableData?.total ?? 0} players · ${tabs.find(t => t.id === view)?.label ?? ""}`}
+                ? `${mergedOverall.length} players ranked across all modes`
+                : `${mergedGm.length} players · ${tabs.find(t => t.id === view)?.label ?? ""}`}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -465,9 +505,9 @@ export default function Leaderboard() {
                 ))}
               </div>
             ) : view === "overall" ? (
-              filteredOverall.length > 0 ? (
+              mergedOverall.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {filteredOverall.map(player => (
+                  {mergedOverall.map(player => (
                     <PlayerCard
                       key={player.playerId}
                       player={player}
