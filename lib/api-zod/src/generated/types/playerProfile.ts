@@ -17,6 +17,7 @@ export interface PlayerProfile {
   country?: string | null;
   /** @nullable */
   userId?: number | null;
+  isVerified?: boolean;
   createdAt: string;
   updatedAt?: string;
   ratings: PlayerRating[];

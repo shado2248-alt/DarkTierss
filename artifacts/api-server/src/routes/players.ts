@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, playersTable, playerRatingsTable, gamemodesTable, tiersTable, matchesTable } from "@workspace/db";
+import { db, playersTable, playerRatingsTable, gamemodesTable, tiersTable, matchesTable, usersTable } from "@workspace/db";
 import { eq, ilike, and, desc, asc, sql } from "drizzle-orm";
 import {
   ListPlayersQueryParams,
@@ -32,6 +32,8 @@ async function formatRating(r: typeof playerRatingsTable.$inferSelect) {
     wins: r.wins,
     losses: r.losses,
     totalMatches: r.totalMatches,
+    currentStreak: r.currentStreak ?? 0,
+    maxStreak: r.maxStreak ?? 0,
     ...tierInfo,
     season: r.season,
     updatedAt: r.updatedAt.toISOString(),
@@ -280,6 +282,38 @@ router.get("/player-match-history", async (req, res): Promise<void> => {
 
   const formatted = await Promise.all(matches.map(formatMatch));
   res.json({ matches: formatted, total: count ?? 0, page, limit });
+});
+
+// ── CLAIM ─────────────────────────────────────────────────────────────────────
+router.post("/players/:id/claim", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid player id" }); return; }
+
+  const sessionUserId = (req.session as any).userId as number | undefined;
+  if (!sessionUserId) { res.status(401).json({ error: "Login required to claim a profile" }); return; }
+
+  const [player] = await db.select().from(playersTable).where(eq(playersTable.id, id));
+  if (!player) { res.status(404).json({ error: "Player not found" }); return; }
+
+  if (player.userId) {
+    if (player.userId === sessionUserId) {
+      res.status(400).json({ error: "You already own this profile" }); return;
+    }
+    res.status(409).json({ error: "This profile has already been claimed" }); return;
+  }
+
+  // Check this user hasn't claimed another player already
+  const [alreadyClaimed] = await db.select().from(playersTable).where(eq(playersTable.userId, sessionUserId));
+  if (alreadyClaimed) {
+    res.status(409).json({ error: `You already have a linked profile: ${alreadyClaimed.username}` }); return;
+  }
+
+  const [updated] = await db.update(playersTable)
+    .set({ userId: sessionUserId, isVerified: true })
+    .where(eq(playersTable.id, id))
+    .returning();
+
+  res.json({ id: updated.id, username: updated.username, isVerified: updated.isVerified });
 });
 
 export default router;

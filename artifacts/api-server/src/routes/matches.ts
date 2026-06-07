@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, matchesTable, playersTable, gamemodesTable, playerRatingsTable, tierPromotionsTable, tiersTable } from "@workspace/db";
+import { db, matchesTable, playersTable, gamemodesTable, playerRatingsTable, tierPromotionsTable, tiersTable, settingsTable } from "@workspace/db";
 import { eq, desc, sql, and } from "drizzle-orm";
 import {
   ListMatchesQueryParams,
@@ -128,7 +128,11 @@ router.post("/matches", async (req, res): Promise<void> => {
     });
   }
 
-  // Update ratings
+  // Streak calculation
+  const newWinnerStreak = (winnerRating.currentStreak ?? 0) + 1;
+  const newWinnerMaxStreak = Math.max(winnerRating.maxStreak ?? 0, newWinnerStreak);
+
+  // Update ratings + streaks
   await db
     .update(playerRatingsTable)
     .set({
@@ -137,6 +141,8 @@ router.post("/matches", async (req, res): Promise<void> => {
       wins: winnerRating.wins + 1,
       totalMatches: winnerRating.totalMatches + 1,
       tierId: newWinnerTier?.id ?? winnerRating.tierId,
+      currentStreak: newWinnerStreak,
+      maxStreak: newWinnerMaxStreak,
     })
     .where(and(eq(playerRatingsTable.playerId, winnerId), eq(playerRatingsTable.gamemodeId, gamemodeId)));
 
@@ -147,6 +153,7 @@ router.post("/matches", async (req, res): Promise<void> => {
       losses: loserRating.losses + 1,
       totalMatches: loserRating.totalMatches + 1,
       tierId: newLoserTier?.id ?? loserRating.tierId,
+      currentStreak: 0,
     })
     .where(and(eq(playerRatingsTable.playerId, loserId), eq(playerRatingsTable.gamemodeId, gamemodeId)));
 
@@ -163,6 +170,38 @@ router.post("/matches", async (req, res): Promise<void> => {
       playedAt: playedAt ? new Date(playedAt) : new Date(),
     })
     .returning();
+
+  // Fire Discord webhook on tier promotion
+  if (newWinnerTier && (!winnerRating.tierId || winnerRating.tierId !== newWinnerTier.id)) {
+    try {
+      const settingsRows = await db.select().from(settingsTable);
+      const webhookUrl = settingsRows.find(r => r.key === "discordWebhookUrl")?.value;
+      if (webhookUrl) {
+        const [winnerPlayer] = await db.select().from(playersTable).where(eq(playersTable.id, winnerId));
+        const [gm] = await db.select().from(gamemodesTable).where(eq(gamemodesTable.id, gamemodeId));
+        const oldTierRow = winnerRating.tierId
+          ? (await db.select().from(tiersTable).where(eq(tiersTable.id, winnerRating.tierId)))[0]
+          : null;
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            embeds: [{
+              title: "Tier Promotion",
+              color: 0x8b5cf6,
+              description: `**${winnerPlayer?.username ?? "Unknown"}** was promoted in **${gm?.name ?? "Unknown"}**`,
+              fields: [
+                { name: "From", value: oldTierRow?.name ?? "Unranked", inline: true },
+                { name: "To", value: newWinnerTier.name, inline: true },
+                { name: "New Rating", value: String(newWinnerRating), inline: true },
+              ],
+              timestamp: new Date().toISOString(),
+            }],
+          }),
+        }).catch(() => {}); // fire-and-forget, never block
+      }
+    } catch { /* webhook errors must never break match creation */ }
+  }
 
   res.status(201).json(await formatMatch(match));
 });

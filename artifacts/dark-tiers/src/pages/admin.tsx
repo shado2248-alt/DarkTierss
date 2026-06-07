@@ -1295,6 +1295,17 @@ function SettingsTab() {
           <p className="text-[10px] text-muted-foreground/50 mt-1">Used for all Discord join buttons across the site.</p>
         </div>
 
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Discord Webhook URL</label>
+          <Input
+            value={(form as any).discordWebhookUrl ?? ""}
+            onChange={e => setForm(f => ({ ...f, discordWebhookUrl: e.target.value } as any))}
+            placeholder="https://discord.com/api/webhooks/..."
+            className="bg-black/40 border-white/10 text-white font-mono text-xs"
+          />
+          <p className="text-[10px] text-muted-foreground/50 mt-1">Tier promotions will be auto-posted here. Leave blank to disable. See tutorial below.</p>
+        </div>
+
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 font-bold h-10 px-8">
             {saving ? "Saving..." : "Save Settings"}
@@ -1308,21 +1319,17 @@ function SettingsTab() {
         </div>
       </form>
 
-      {settings && (
-        <div className="glass-card rounded-xl border border-white/8 p-4 flex flex-col gap-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Current Live Values</p>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary/60 w-20">Server IP</span>
-              <span className="font-mono text-sm text-white bg-white/5 px-3 py-1 rounded border border-white/10">{settings.serverIp || <span className="text-muted-foreground/40 italic">not set</span>}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary/60 w-20">Discord</span>
-              <span className="font-mono text-xs text-[#7289da] bg-white/5 px-3 py-1 rounded border border-white/10 max-w-xs truncate">{settings.discordUrl || <span className="text-muted-foreground/40 italic">not set</span>}</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Discord Webhook Tutorial */}
+      <div className="glass-card rounded-xl border border-white/8 p-5 flex flex-col gap-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">How to set up Discord Webhook</p>
+        <ol className="text-xs text-muted-foreground flex flex-col gap-1.5 list-decimal list-inside">
+          <li>Open your Discord server, go to <span className="text-white font-semibold">Server Settings</span> → <span className="text-white font-semibold">Integrations</span> → <span className="text-white font-semibold">Webhooks</span></li>
+          <li>Click <span className="text-white font-semibold">New Webhook</span>, give it a name (e.g. "Tier Promotions"), choose the channel</li>
+          <li>Click <span className="text-white font-semibold">Copy Webhook URL</span></li>
+          <li>Paste it in the field above and hit Save</li>
+        </ol>
+        <p className="text-[10px] text-muted-foreground/50">Every time a player gets promoted to a new tier via a match, a message will be auto-posted to that Discord channel.</p>
+      </div>
     </div>
   );
 }

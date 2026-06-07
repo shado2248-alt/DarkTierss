@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { useGetPlayer } from "@workspace/api-client-react";
+import { useGetPlayer, useGetMe, useClaimPlayer } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { TierBadge } from "@/components/ui/tier-badge";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import { Trophy, Swords, Star, TrendingUp, Shield, Zap, Award } from "lucide-react";
+import { Trophy, Swords, Star, TrendingUp, Shield, Zap, Award, ShieldCheck, Flame } from "lucide-react";
 
 // ── Achievement definitions ───────────────────────────────────────────────────
 interface AchievementDef {
@@ -85,7 +86,12 @@ export default function PlayerProfile() {
   const id = params?.id ? parseInt(params.id) : 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: player, isLoading } = useGetPlayer(id, { query: { enabled: !!id } as any });
+  const { data: me } = useGetMe();
+  const claimPlayer = useClaimPlayer();
+  const qc = useQueryClient();
   const [graphGamemode, setGraphGamemode] = useState<number | null>(null);
+  const [claiming, setClaiming] = useState(false);
+  const [claimMsg, setClaimMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   if (isLoading) {
     return (
@@ -119,6 +125,24 @@ export default function PlayerProfile() {
 
   const earned = computeAchievements(player);
 
+  // Claim logic
+  const canClaim = me && !(player as any).userId && !(player as any).isVerified;
+  const isOwn = me && (player as any).userId && String((player as any).userId) === String((me as any).id);
+  const handleClaim = async () => {
+    setClaiming(true); setClaimMsg(null);
+    try {
+      await claimPlayer.mutateAsync({ id } as any);
+      qc.invalidateQueries();
+      setClaimMsg({ ok: true, text: "Profile claimed! You are now verified." });
+    } catch (err: any) {
+      setClaimMsg({ ok: false, text: err?.response?.data?.error ?? err?.message ?? "Failed to claim" });
+    } finally { setClaiming(false); }
+  };
+
+  // Best streak across all gamemodes
+  const bestCurrentStreak = ratings.reduce((a: number, r: any) => Math.max(a, r.currentStreak ?? 0), 0);
+  const bestMaxStreak = ratings.reduce((a: number, r: any) => Math.max(a, r.maxStreak ?? 0), 0);
+
   // Default graph gamemode to first one with matches
   const activeGmId = graphGamemode ?? (ratings.find((r: any) => r.totalMatches > 0)?.gamemodeId ?? null);
   const activeRating = ratings.find((r: any) => r.gamemodeId === activeGmId);
@@ -138,13 +162,36 @@ export default function PlayerProfile() {
             <div className="relative flex flex-col items-center pt-6 pb-5 px-6">
               <div className="absolute top-0 inset-x-0 h-20 bg-gradient-to-b from-primary/30 to-transparent" />
               <img src={`https://mc-heads.net/body/${player.uuid}/100`} alt={player.username} className="w-24 h-auto drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)] z-10 mb-4" />
-              <h1 className="text-2xl font-black text-white z-10">{player.username}</h1>
+              <h1 className="text-2xl font-black text-white z-10 flex items-center gap-2">
+                {player.username}
+                {(player as any).isVerified && (
+                  <span title="Verified account" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500/20 border border-green-500/40">
+                    <ShieldCheck className="w-3 h-3 text-green-400" />
+                  </span>
+                )}
+                {isOwn && (
+                  <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/15 border border-primary/30 px-1.5 py-0.5 rounded-full">You</span>
+                )}
+              </h1>
               <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mt-1 z-10">
                 {player.region}{player.country ? ` · ${player.country}` : ""}
               </div>
               {bestTierRating && (
                 <div className="mt-3 z-10">
                   <TierBadge tierName={bestTierRating.tierName} tierColor={bestTierRating.tierColor} />
+                </div>
+              )}
+              {/* Claim button */}
+              {canClaim && (
+                <div className="mt-3 z-10 w-full flex flex-col items-center gap-2">
+                  <button onClick={handleClaim} disabled={claiming}
+                    className="flex items-center gap-2 text-xs font-bold bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary px-4 py-2 rounded-lg transition-all w-full justify-center">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    {claiming ? "Claiming..." : "Claim this profile"}
+                  </button>
+                  {claimMsg && (
+                    <span className={`text-[11px] font-semibold ${claimMsg.ok ? "text-green-400" : "text-red-400"}`}>{claimMsg.text}</span>
+                  )}
                 </div>
               )}
               <div className="text-[10px] text-muted-foreground/40 font-mono mt-3 truncate w-full text-center z-10">{player.uuid}</div>
@@ -163,6 +210,8 @@ export default function PlayerProfile() {
                 { label: "Best Rating", value: bestRating, bold: true, color: "text-primary" },
                 { label: "Peak Rating", value: bestPeak, bold: true },
                 { label: "Gamemodes", value: ratings.length },
+                ...(bestCurrentStreak > 1 ? [{ label: "Win Streak", value: `${bestCurrentStreak}x`, bold: true, color: "text-orange-400" }] : []),
+                ...(bestMaxStreak > 0 ? [{ label: "Best Streak", value: `${bestMaxStreak}x`, bold: false, color: "text-muted-foreground" }] : []),
               ].map(({ label, value, bold, color }) => (
                 <div key={label} className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">{label}</span>
@@ -217,15 +266,20 @@ export default function PlayerProfile() {
                         <div className="text-3xl font-black text-primary leading-none">{rating.rating}</div>
                         <div className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">ELO</div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end gap-1">
                         <div className="text-sm font-semibold">
                           <span className="text-green-400">{rating.wins}W</span>
                           <span className="text-muted-foreground mx-1">-</span>
                           <span className="text-red-400">{rating.losses}L</span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                        <div className="text-[10px] text-muted-foreground">
                           Peak: <span className="text-white/60 font-mono">{rating.peakRating}</span>
                         </div>
+                        {(rating.currentStreak ?? 0) > 1 && (
+                          <div className="flex items-center gap-1 text-[10px] font-black text-orange-400 bg-orange-500/10 border border-orange-500/25 rounded px-1.5 py-0.5">
+                            <Flame className="w-3 h-3" />{rating.currentStreak}W streak
+                          </div>
+                        )}
                       </div>
                     </div>
                     {/* Win rate bar */}

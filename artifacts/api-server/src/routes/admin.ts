@@ -153,18 +153,18 @@ router.get("/admin/analytics", async (req, res): Promise<void> => {
 // ── SETTINGS ────────────────────────────────────────────────────────────────────
 router.patch("/admin/settings", async (req, res): Promise<void> => {
   const { serverIp, discordUrl } = req.body ?? {};
-  if (serverIp !== undefined) {
-    await db.insert(settingsTable).values({ key: "serverIp", value: String(serverIp) })
-      .onConflictDoUpdate({ target: settingsTable.key, set: { value: String(serverIp), updatedAt: new Date() } });
-  }
-  if (discordUrl !== undefined) {
-    await db.insert(settingsTable).values({ key: "discordUrl", value: String(discordUrl) })
-      .onConflictDoUpdate({ target: settingsTable.key, set: { value: String(discordUrl), updatedAt: new Date() } });
-  }
+  const { discordWebhookUrl } = req.body ?? {};
+  const upsert = async (key: string, value: string) => {
+    await db.insert(settingsTable).values({ key, value })
+      .onConflictDoUpdate({ target: settingsTable.key, set: { value, updatedAt: new Date() } });
+  };
+  if (serverIp !== undefined) await upsert("serverIp", String(serverIp));
+  if (discordUrl !== undefined) await upsert("discordUrl", String(discordUrl));
+  if (discordWebhookUrl !== undefined) await upsert("discordWebhookUrl", String(discordWebhookUrl));
   const rows = await db.select().from(settingsTable);
   const map: Record<string, string> = {};
   for (const r of rows) map[r.key] = r.value;
-  res.json({ serverIp: map.serverIp ?? "", discordUrl: map.discordUrl ?? "" });
+  res.json({ serverIp: map.serverIp ?? "", discordUrl: map.discordUrl ?? "", discordWebhookUrl: map.discordWebhookUrl ?? "" });
 });
 
 // ── PROMOTIONS ──────────────────────────────────────────────────────────────────

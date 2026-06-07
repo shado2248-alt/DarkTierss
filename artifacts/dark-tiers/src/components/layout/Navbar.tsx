@@ -28,10 +28,11 @@ export function Navbar() {
   };
 
   const navLinks = [
-    { href: "/leaderboard", label: "Leaderboard" },
-    { href: "/players",     label: "Players" },
-    { href: "/compare",     label: "Compare" },
-    { href: "/tests",       label: "Tier Testers" },
+    { href: "/leaderboard",   label: "Leaderboard" },
+    { href: "/players",       label: "Players" },
+    { href: "/compare",       label: "Compare" },
+    { href: "/tests",         label: "Tier Testers" },
+    { href: "/staff",         label: "Staff" },
     { href: "/announcements", label: "News" },
   ];
 

@@ -19,6 +19,7 @@ import Admin from "@/pages/admin";
 import Login from "@/pages/login";
 import Profile from "@/pages/profile";
 import Compare from "@/pages/compare";
+import Staff from "@/pages/staff";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +59,7 @@ function Router() {
               <Route path="/login" component={Login} />
               <Route path="/profile" component={Profile} />
               <Route path="/compare" component={Compare} />
+              <Route path="/staff" component={Staff} />
               <Route component={NotFound} />
             </Switch>
           </motion.div>

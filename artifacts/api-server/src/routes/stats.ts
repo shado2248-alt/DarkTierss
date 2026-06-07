@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, playersTable, matchesTable, testsTable, tierPromotionsTable, gamemodesTable, tiersTable, settingsTable } from "@workspace/db";
-import { desc, eq } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { db, playersTable, matchesTable, testsTable, tierPromotionsTable, gamemodesTable, tiersTable, settingsTable, usersTable, playerRatingsTable } from "@workspace/db";
+import { desc, eq, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -10,6 +9,57 @@ router.get("/settings", async (_req, res): Promise<void> => {
   const map: Record<string, string> = {};
   for (const r of rows) map[r.key] = r.value;
   res.json({ serverIp: map.serverIp ?? "", discordUrl: map.discordUrl ?? "" });
+});
+
+router.get("/staff", async (_req, res): Promise<void> => {
+  const staffUsers = await db.select().from(usersTable)
+    .where(sql`${usersTable.role} IN ('tester','moderator','admin','owner')`);
+
+  const result = await Promise.all(staffUsers.map(async (user) => {
+    // Find linked player (player.userId = user.id)
+    const [player] = await db.select().from(playersTable).where(eq(playersTable.userId, user.id));
+    let bestTierName: string | null = null;
+    let bestTierColor: string | null = null;
+    let bestRating: number | null = null;
+    let gamemodeNames: string[] = [];
+
+    if (player) {
+      const ratings = await db.select().from(playerRatingsTable).where(eq(playerRatingsTable.playerId, player.id));
+      if (ratings.length > 0) {
+        const best = ratings.reduce((a, b) => a.rating > b.rating ? a : b);
+        bestRating = best.rating;
+        if (best.tierId) {
+          const [tier] = await db.select().from(tiersTable).where(eq(tiersTable.id, best.tierId));
+          if (tier) { bestTierName = tier.name; bestTierColor = tier.color; }
+        }
+        const gmIds = [...new Set(ratings.map(r => r.gamemodeId))];
+        const gms = await Promise.all(gmIds.map(id => db.select().from(gamemodesTable).where(eq(gamemodesTable.id, id)).then(r => r[0])));
+        gamemodeNames = gms.filter(Boolean).map(g => g!.name);
+      }
+    }
+
+    return {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      avatar: user.avatar,
+      role: user.role,
+      playerId: player?.id ?? null,
+      playerUsername: player?.username ?? null,
+      playerUuid: player?.uuid ?? null,
+      isVerified: player?.isVerified ?? false,
+      bestRating,
+      bestTierName,
+      bestTierColor,
+      gamemodes: gamemodeNames,
+    };
+  }));
+
+  // Sort: owner → admin → moderator → tester
+  const RANK: Record<string, number> = { owner: 4, admin: 3, moderator: 2, tester: 1 };
+  result.sort((a, b) => (RANK[b.role] ?? 0) - (RANK[a.role] ?? 0));
+
+  res.json(result);
 });
 
 router.get("/stats", async (_req, res): Promise<void> => {

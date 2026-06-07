@@ -259,6 +259,7 @@ export const GetPlayerResponse = zod.object({
   "region": zod.string(),
   "country": zod.string().nullish(),
   "userId": zod.number().nullish(),
+  "isVerified": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional(),
   "ratings": zod.array(zod.object({
@@ -272,6 +273,8 @@ export const GetPlayerResponse = zod.object({
   "wins": zod.number(),
   "losses": zod.number(),
   "totalMatches": zod.number(),
+  "currentStreak": zod.number().optional(),
+  "maxStreak": zod.number().optional(),
   "tierId": zod.number().nullish(),
   "tierName": zod.string().nullish(),
   "tierColor": zod.string().nullish(),
@@ -333,6 +336,20 @@ export const DeletePlayerParams = zod.object({
 
 
 /**
+ * @summary Claim a player profile (link to logged-in user)
+ */
+export const ClaimPlayerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ClaimPlayerResponse = zod.object({
+  "id": zod.number().optional(),
+  "username": zod.string().optional(),
+  "isVerified": zod.boolean().optional()
+})
+
+
+/**
  * @summary Get player ratings across all gamemodes
  */
 export const GetPlayerRatingsParams = zod.object({
@@ -350,6 +367,8 @@ export const GetPlayerRatingsResponseItem = zod.object({
   "wins": zod.number(),
   "losses": zod.number(),
   "totalMatches": zod.number(),
+  "currentStreak": zod.number().optional(),
+  "maxStreak": zod.number().optional(),
   "tierId": zod.number().nullish(),
   "tierName": zod.string().nullish(),
   "tierColor": zod.string().nullish(),
@@ -358,6 +377,27 @@ export const GetPlayerRatingsResponseItem = zod.object({
   "updatedAt": zod.string().optional()
 })
 export const GetPlayerRatingsResponse = zod.array(GetPlayerRatingsResponseItem)
+
+
+/**
+ * @summary Get public staff/tester roster
+ */
+export const GetStaffResponseItem = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string().nullish(),
+  "avatar": zod.string().nullish(),
+  "role": zod.string(),
+  "playerId": zod.number().nullish(),
+  "playerUsername": zod.string().nullish(),
+  "playerUuid": zod.string().nullish(),
+  "isVerified": zod.boolean().optional(),
+  "bestRating": zod.number().nullish(),
+  "bestTierName": zod.string().nullish(),
+  "bestTierColor": zod.string().nullish(),
+  "gamemodes": zod.array(zod.string()).optional()
+})
+export const GetStaffResponse = zod.array(GetStaffResponseItem)
 
 
 /**
@@ -734,7 +774,8 @@ export const DeleteAnnouncementParams = zod.object({
  */
 export const GetSettingsResponse = zod.object({
   "serverIp": zod.string().optional(),
-  "discordUrl": zod.string().optional()
+  "discordUrl": zod.string().optional(),
+  "discordWebhookUrl": zod.string().optional()
 })
 
 
@@ -743,12 +784,14 @@ export const GetSettingsResponse = zod.object({
  */
 export const UpdateSettingsBody = zod.object({
   "serverIp": zod.string().optional(),
-  "discordUrl": zod.string().optional()
+  "discordUrl": zod.string().optional(),
+  "discordWebhookUrl": zod.string().optional()
 })
 
 export const UpdateSettingsResponse = zod.object({
   "serverIp": zod.string().optional(),
-  "discordUrl": zod.string().optional()
+  "discordUrl": zod.string().optional(),
+  "discordWebhookUrl": zod.string().optional()
 })
 
 

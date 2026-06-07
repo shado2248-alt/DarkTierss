@@ -6,8 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface PlatformSettings {
-  serverIp?: string;
-  discordUrl?: string;
-  discordWebhookUrl?: string;
-}
+export type ClaimPlayer200 = {
+  id?: number;
+  username?: string;
+  isVerified?: boolean;
+};

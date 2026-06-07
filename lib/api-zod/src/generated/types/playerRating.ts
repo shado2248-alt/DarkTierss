@@ -17,6 +17,8 @@ export interface PlayerRating {
   wins: number;
   losses: number;
   totalMatches: number;
+  currentStreak?: number;
+  maxStreak?: number;
   /** @nullable */
   tierId?: number | null;
   /** @nullable */

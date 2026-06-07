@@ -361,6 +361,36 @@ paths:
         "204":
           description: Deleted
 
+  /players/{id}/claim:
+    post:
+      operationId: claimPlayer
+      tags: [players]
+      summary: Claim a player profile (link to logged-in user)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Claimed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  username:
+                    type: string
+                  isVerified:
+                    type: boolean
+        "401":
+          description: Not authenticated
+        "409":
+          description: Already claimed
+
   /players/{id}/ratings:
     get:
       operationId: getPlayerRatings
@@ -381,6 +411,21 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PlayerRating"
+
+  /staff:
+    get:
+      operationId: getStaff
+      tags: [staff]
+      summary: Get public staff/tester roster
+      responses:
+        "200":
+          description: Staff roster
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StaffMember"
 
   /player-match-history:
     get:
@@ -1163,6 +1208,8 @@ components:
           type: ["string", "null"]
         userId:
           type: ["integer", "null"]
+        isVerified:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
@@ -1199,6 +1246,10 @@ components:
         losses:
           type: integer
         totalMatches:
+          type: integer
+        currentStreak:
+          type: integer
+        maxStreak:
           type: integer
         tierId:
           type: ["integer", "null"]
@@ -1584,6 +1635,41 @@ components:
           type: string
         discordUrl:
           type: string
+        discordWebhookUrl:
+          type: string
+
+    StaffMember:
+      type: object
+      required: [id, username, role]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        displayName:
+          type: ["string", "null"]
+        avatar:
+          type: ["string", "null"]
+        role:
+          type: string
+        playerId:
+          type: ["integer", "null"]
+        playerUsername:
+          type: ["string", "null"]
+        playerUuid:
+          type: ["string", "null"]
+        isVerified:
+          type: boolean
+        bestRating:
+          type: ["integer", "null"]
+        bestTierName:
+          type: ["string", "null"]
+        bestTierColor:
+          type: ["string", "null"]
+        gamemodes:
+          type: array
+          items:
+            type: string
 
     AdminStats:
       type: object

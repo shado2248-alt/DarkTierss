@@ -28,6 +28,7 @@ import type {
   AnnouncementUpdate,
   AuthUser,
   ChangeTierInput,
+  ClaimPlayer200,
   Gamemode,
   GamemodeInput,
   GamemodeUpdate,
@@ -60,6 +61,7 @@ import type {
   ResetRatingInput,
   SetTierByUsernameInput,
   SetTierByUsernameResult,
+  StaffMember,
   Test,
   TestInput,
   TestList,
@@ -1423,6 +1425,76 @@ export const useDeletePlayer = <TError = ErrorType<unknown>,
       return useMutation(getDeletePlayerMutationOptions(options));
     }
 
+export const getClaimPlayerUrl = (id: number,) => {
+
+
+
+
+  return `/api/players/${id}/claim`
+}
+
+/**
+ * @summary Claim a player profile (link to logged-in user)
+ */
+export const claimPlayer = async (id: number, options?: RequestInit): Promise<ClaimPlayer200> => {
+
+  return customFetch<ClaimPlayer200>(getClaimPlayerUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getClaimPlayerMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimPlayer>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimPlayer>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['claimPlayer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimPlayer>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  claimPlayer(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimPlayerMutationResult = NonNullable<Awaited<ReturnType<typeof claimPlayer>>>
+
+    export type ClaimPlayerMutationError = ErrorType<void>
+
+    /**
+ * @summary Claim a player profile (link to logged-in user)
+ */
+export const useClaimPlayer = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimPlayer>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimPlayer>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getClaimPlayerMutationOptions(options));
+    }
+
 export const getGetPlayerRatingsUrl = (id: number,) => {
 
 
@@ -1488,6 +1560,83 @@ export function useGetPlayerRatings<TData = Awaited<ReturnType<typeof getPlayerR
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPlayerRatingsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetStaffUrl = () => {
+
+
+
+
+  return `/api/staff`
+}
+
+/**
+ * @summary Get public staff/tester roster
+ */
+export const getStaff = async ( options?: RequestInit): Promise<StaffMember[]> => {
+
+  return customFetch<StaffMember[]>(getGetStaffUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStaffQueryKey = () => {
+    return [
+    `/api/staff`
+    ] as const;
+    }
+
+
+export const getGetStaffQueryOptions = <TData = Awaited<ReturnType<typeof getStaff>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaff>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStaffQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStaff>>> = ({ signal }) => getStaff({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStaff>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStaffQueryResult = NonNullable<Awaited<ReturnType<typeof getStaff>>>
+export type GetStaffQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get public staff/tester roster
+ */
+
+export function useGetStaff<TData = Awaited<ReturnType<typeof getStaff>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaff>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStaffQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

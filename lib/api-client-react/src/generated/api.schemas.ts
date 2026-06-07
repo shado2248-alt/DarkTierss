@@ -156,6 +156,8 @@ export interface PlayerRating {
   wins: number;
   losses: number;
   totalMatches: number;
+  currentStreak?: number;
+  maxStreak?: number;
   /** @nullable */
   tierId?: number | null;
   /** @nullable */
@@ -177,6 +179,7 @@ export interface PlayerProfile {
   country?: string | null;
   /** @nullable */
   userId?: number | null;
+  isVerified?: boolean;
   createdAt: string;
   updatedAt?: string;
   ratings: PlayerRating[];
@@ -442,6 +445,31 @@ export interface UserList {
 export interface PlatformSettings {
   serverIp?: string;
   discordUrl?: string;
+  discordWebhookUrl?: string;
+}
+
+export interface StaffMember {
+  id: number;
+  username: string;
+  /** @nullable */
+  displayName?: string | null;
+  /** @nullable */
+  avatar?: string | null;
+  role: string;
+  /** @nullable */
+  playerId?: number | null;
+  /** @nullable */
+  playerUsername?: string | null;
+  /** @nullable */
+  playerUuid?: string | null;
+  isVerified?: boolean;
+  /** @nullable */
+  bestRating?: number | null;
+  /** @nullable */
+  bestTierName?: string | null;
+  /** @nullable */
+  bestTierColor?: string | null;
+  gamemodes?: string[];
 }
 
 export interface AdminStats {
@@ -531,6 +559,12 @@ tierId?: number;
 sortBy?: string;
 page?: number;
 limit?: number;
+};
+
+export type ClaimPlayer200 = {
+  id?: number;
+  username?: string;
+  isVerified?: boolean;
 };
 
 export type ListPlayerMatchesParams = {
