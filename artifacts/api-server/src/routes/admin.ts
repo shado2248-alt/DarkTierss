@@ -252,6 +252,13 @@ router.post("/admin/set-tier-by-username", async (req, res): Promise<void> => {
   // Find or create player
   const allPlayers = await db.select().from(playersTable);
   let player = allPlayers.find(p => p.username.toLowerCase() === trimmed.toLowerCase());
+
+  // Block self-assignment: testers/admins cannot set their own tier
+  const sessionUserId = (req.session as any).userId as number | undefined;
+  if (player && player.userId && player.userId === sessionUserId) {
+    res.status(403).json({ error: "You cannot assign your own tier result." }); return;
+  }
+
   let created = false;
 
   if (!player) {
