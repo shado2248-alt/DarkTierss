@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Plus, X, Swords } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GamemodeIcon, trophyImg } from "@/lib/gamemode-icons";
+import { fetchTierResults, deduplicateResults, abbreviateRank } from "@/lib/tierlist-api";
 
 const ROLE_RANK: Record<string, number> = { user: 0, tester: 1, moderator: 2, admin: 3, owner: 4 };
 function isStaff(role: string) { return (ROLE_RANK[role] ?? 0) >= 1; }
@@ -139,6 +140,11 @@ const REGION_CLS: Record<string, string> = {
   AS: "text-yellow-400 border-yellow-500/50 bg-yellow-500/10",
   OC: "text-green-400 border-green-500/50 bg-green-500/10",
   SA: "text-orange-400 border-orange-500/50 bg-orange-500/10",
+};
+
+const REGION_ABBR: Record<string, string> = {
+  "Asia": "AS", "North America": "NA", "Europe": "EU",
+  "Oceania": "OC", "South America": "SA",
 };
 
 const TIER_NUM_STYLE: Record<number, { header: string; border: string; trophy: string }> = {
@@ -315,18 +321,50 @@ export default function Leaderboard() {
     enabled: view === "overall",
   });
 
-  const gamemodeId = view !== "overall" ? parseInt(view) : undefined;
+  const { data: rawTierlist = [], isLoading: tierlistLoading } = useQuery({
+    queryKey: ["tierlist-external"],
+    queryFn: fetchTierResults,
+    refetchInterval: 10_000,
+    staleTime: 9_000,
+    enabled: view === "tierlist",
+  });
+
+  const tierlistEntries: LeaderboardEntry[] = deduplicateResults(rawTierlist)
+    .sort((a, b) => {
+      const RANK_SCORE: Record<string, number> = {
+        "High Tier 1": 10, "Low Tier 1": 9, "High Tier 2": 8, "Low Tier 2": 7,
+        "High Tier 3": 6, "Low Tier 3": 5, "High Tier 4": 4, "Low Tier 4": 3,
+        "High Tier 5": 2, "Low Tier 5": 1,
+      };
+      return (RANK_SCORE[b.rankEarned] ?? 0) - (RANK_SCORE[a.rankEarned] ?? 0);
+    })
+    .map((r, i) => ({
+      rank: i + 1,
+      playerId: i,
+      username: r.username,
+      uuid: r.username,
+      region: REGION_ABBR[r.region] ?? r.region ?? null,
+      tierName: abbreviateRank(r.rankEarned),
+      tierColor: null,
+      rating: 0,
+      wins: 0,
+      losses: 0,
+      totalMatches: 0,
+    }));
+
+  const gamemodeId = view !== "overall" && view !== "tierlist" ? parseInt(view) : undefined;
   const { data: tableData, isLoading: tableLoading } = useGetLeaderboard(
     { gamemodeId, sortBy: "rating", limit: 500 },
-    { query: { enabled: view !== "overall" } as any }
+    { query: { enabled: view !== "overall" && view !== "tierlist" } as any }
   );
 
   const tabs = [
     { id: "overall", label: "Overall" },
+    { id: "tierlist", label: "Tier List" },
     ...(gamemodes?.map(g => ({ id: g.id.toString(), label: g.name })) ?? []),
   ];
 
-  const isLoading = view === "overall" ? overallLoading : tableLoading;
+  const isLoading = view === "overall" ? overallLoading : view === "tierlist" ? tierlistLoading : tableLoading;
 
   const filteredOverall = (overallData?.players ?? []).filter(p =>
     !search || p.username.toLowerCase().includes(search.toLowerCase())
