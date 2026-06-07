@@ -206,6 +206,7 @@ router.get("/leaderboard/overall", async (_req, res): Promise<void> => {
         .select({
           gamemodeId: playerRatingsTable.gamemodeId,
           rating: playerRatingsTable.rating,
+          peakRating: playerRatingsTable.peakRating,
           tierId: playerRatingsTable.tierId,
         })
         .from(playerRatingsTable)
@@ -214,7 +215,7 @@ router.get("/leaderboard/overall", async (_req, res): Promise<void> => {
       // Build per-gamemode tier map
       const gamemodeRatings: Record<
         number,
-        { tierName: string | null; tierColor: string | null; tierSlug: string | null; tierRank: number; rating: number }
+        { tierName: string | null; tierColor: string | null; tierSlug: string | null; tierRank: number; rating: number; peakRating: number }
       > = {};
 
       let totalTierRank = 0;
@@ -236,7 +237,7 @@ router.get("/leaderboard/overall", async (_req, res): Promise<void> => {
           }
         }
 
-        gamemodeRatings[r.gamemodeId] = { tierName, tierColor, tierSlug, tierRank, rating: r.rating };
+        gamemodeRatings[r.gamemodeId] = { tierName, tierColor, tierSlug, tierRank, rating: r.rating, peakRating: r.peakRating ?? r.rating };
         if (tierName) {
           totalTierRank += tierRank;
           rankedCount++;
@@ -275,7 +276,7 @@ router.get("/leaderboard/overall", async (_req, res): Promise<void> => {
       gamemodeId: gm.id,
       gamemodeName: gm.name,
       gamemodeSlug: gm.slug,
-      ...( r.gamemodeRatings[gm.id] ?? { tierName: null, tierColor: null, tierSlug: null, tierRank: null, rating: null }),
+      ...( r.gamemodeRatings[gm.id] ?? { tierName: null, tierColor: null, tierSlug: null, tierRank: null, rating: null, peakRating: null }),
     })),
   }));
 

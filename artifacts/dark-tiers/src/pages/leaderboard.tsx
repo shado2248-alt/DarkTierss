@@ -121,6 +121,7 @@ type OverallPlayer = {
     tierName: string | null;
     tierColor: string | null;
     rating: number | null;
+    peakRating: number | null;
   }>;
 };
 
@@ -188,25 +189,22 @@ const RANK_CARD_STYLE: Record<number, { style: React.CSSProperties; className: s
     style: {
       background: "linear-gradient(120deg, rgba(251,191,36,0.18) 0%, rgba(161,117,0,0.08) 100%)",
       borderColor: "rgba(251,191,36,0.55)",
-      boxShadow: "inset 0 1px 0 rgba(251,191,36,0.15)",
     },
-    className: "border",
+    className: "border gold-ambient",
   },
   2: {
     style: {
       background: "linear-gradient(120deg, rgba(203,213,225,0.16) 0%, rgba(100,116,139,0.07) 100%)",
       borderColor: "rgba(203,213,225,0.45)",
-      boxShadow: "inset 0 1px 0 rgba(203,213,225,0.12)",
     },
-    className: "border",
+    className: "border silver-ambient",
   },
   3: {
     style: {
       background: "linear-gradient(120deg, rgba(180,83,9,0.20) 0%, rgba(120,53,15,0.08) 100%)",
       borderColor: "rgba(217,119,6,0.50)",
-      boxShadow: "inset 0 1px 0 rgba(217,119,6,0.15)",
     },
-    className: "border",
+    className: "border bronze-ambient",
   },
 };
 
@@ -252,9 +250,26 @@ function PlayerCard({
           </span>
           <RegionBadge region={player.region} />
         </div>
-        <p className="text-[11px] text-muted-foreground/50 mt-0.5">
-          {rankedGms.length} mode{rankedGms.length !== 1 ? "s" : ""} ranked
-        </p>
+        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+          <p className="text-[11px] text-muted-foreground/50">
+            {rankedGms.length} mode{rankedGms.length !== 1 ? "s" : ""} ranked
+          </p>
+          {(() => {
+            const peaks = player.gamemodes.map(g => g.peakRating).filter((v): v is number => v != null && v > 0);
+            const bestPeak = peaks.length > 0 ? Math.max(...peaks) : null;
+            const bestCurrent = player.gamemodes.map(g => g.rating).filter((v): v is number => v != null && v > 0);
+            const currentMax = bestCurrent.length > 0 ? Math.max(...bestCurrent) : null;
+            if (!bestPeak) return null;
+            const declined = currentMax != null && bestPeak > currentMax;
+            return (
+              <span className={`text-[11px] font-bold flex items-center gap-0.5 ${declined ? "text-amber-400/80" : "text-emerald-400/70"}`}>
+                <svg className="w-2.5 h-2.5" viewBox="0 0 10 10" fill="currentColor"><path d="M5 1l4 8H1z"/></svg>
+                Peak {bestPeak.toLocaleString()}
+                {declined && <span className="text-red-400/60 font-normal ml-1">(−{(bestPeak - (currentMax ?? 0)).toLocaleString()})</span>}
+              </span>
+            );
+          })()}
+        </div>
 
         {rankedGms.length > 0 && (
           <div className="mt-3">
@@ -414,6 +429,7 @@ export default function Leaderboard() {
             tierName: abbreviateRank(r.rankEarned),
             tierColor: null,
             rating: null,
+            peakRating: null,
           })),
         };
       })

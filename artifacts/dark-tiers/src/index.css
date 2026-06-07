@@ -111,3 +111,30 @@
 .glass-card {
   @apply bg-card/40 backdrop-blur-md border border-white/10 shadow-lg;
 }
+
+/* ── Tier glow animations ──────────────────────────────── */
+@keyframes ht1-pulse {
+  0%, 100% { box-shadow: 0 0 6px 2px rgba(74,222,128,0.45), 0 0 14px 4px rgba(74,222,128,0.18); }
+  50%       { box-shadow: 0 0 12px 4px rgba(74,222,128,0.70), 0 0 26px 8px rgba(74,222,128,0.30); }
+}
+.ht1-glow {
+  animation: ht1-pulse 2s ease-in-out infinite;
+}
+
+@keyframes gold-ambient {
+  0%, 100% { box-shadow: 0 0 22px 5px rgba(251,191,36,0.18), 0 4px 40px 0px rgba(251,191,36,0.08); }
+  50%       { box-shadow: 0 0 36px 8px rgba(251,191,36,0.30), 0 4px 60px 0px rgba(251,191,36,0.14); }
+}
+.gold-ambient { animation: gold-ambient 3s ease-in-out infinite; }
+
+@keyframes silver-ambient {
+  0%, 100% { box-shadow: 0 0 20px 4px rgba(203,213,225,0.14), 0 4px 36px 0px rgba(203,213,225,0.06); }
+  50%       { box-shadow: 0 0 30px 6px rgba(203,213,225,0.24), 0 4px 50px 0px rgba(203,213,225,0.10); }
+}
+.silver-ambient { animation: silver-ambient 3.5s ease-in-out infinite; }
+
+@keyframes bronze-ambient {
+  0%, 100% { box-shadow: 0 0 20px 4px rgba(217,119,6,0.14), 0 4px 36px 0px rgba(217,119,6,0.06); }
+  50%       { box-shadow: 0 0 30px 6px rgba(217,119,6,0.26), 0 4px 50px 0px rgba(217,119,6,0.11); }
+}
+.bronze-ambient { animation: bronze-ambient 3.5s ease-in-out infinite; }
