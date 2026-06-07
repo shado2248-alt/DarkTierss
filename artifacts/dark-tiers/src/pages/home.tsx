@@ -390,41 +390,50 @@ export default function Home() {
             </motion.div>
           </div>
 
-          {/* ── Hero right: Server IP image card ── */}
-          <motion.div
-            initial={{ opacity: 0, x: 40, scale: 0.95 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.45, ease: EASE }}
-            className="hidden lg:flex flex-col items-center gap-4 flex-shrink-0 self-center"
-          >
-            {/* Glowing frame around the image */}
+          {/* ── Hero right: Server IP card ── */}
+          {serverIp && (
             <motion.div
-              className="relative rounded-2xl overflow-hidden border border-primary/30 shadow-[0_0_60px_rgba(139,92,246,0.25)] hover:shadow-[0_0_80px_rgba(139,92,246,0.4)] transition-shadow duration-500"
-              whileHover={{ scale: 1.03, y: -4 }}
-              transition={{ duration: 0.25 }}
+              initial={{ opacity: 0, x: 40, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              transition={{ duration: 0.7, delay: 0.45, ease: EASE }}
+              className="hidden lg:flex flex-col items-center gap-4 flex-shrink-0 self-center"
             >
-              <img
-                src="/server-ip.jpg"
-                alt="Server IP: PrimePvP.qzz.io"
-                className="w-56 h-auto object-contain"
-              />
-              {/* Overlay glow effect */}
-              <div className="absolute inset-0 pointer-events-none rounded-2xl"
-                style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.08) 0%, transparent 60%)" }} />
+              <motion.div
+                className="relative flex items-center gap-4 bg-black/60 border border-white/10 rounded-2xl px-6 py-5 shadow-[0_0_50px_rgba(139,92,246,0.2)]"
+                whileHover={{ scale: 1.04, y: -3, boxShadow: "0 0 70px rgba(139,92,246,0.35)" }}
+                transition={{ duration: 0.25 }}
+              >
+                {/* Subtle glow behind */}
+                <motion.div
+                  className="absolute inset-0 rounded-2xl pointer-events-none"
+                  animate={{ opacity: [0.4, 0.8, 0.4] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  style={{ background: "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(139,92,246,0.07), transparent)" }}
+                />
+                {/* Trophy icon */}
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
+                  <Trophy className="w-6 h-6 text-yellow-400" />
+                </div>
+                {/* Text */}
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-1">Server IP</div>
+                  <div className="font-black text-white text-xl font-mono leading-none">{serverIp}</div>
+                </div>
+              </motion.div>
+              {/* Online pill */}
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
+                className="flex items-center gap-2 text-[11px] text-green-400 font-bold uppercase tracking-widest"
+              >
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-green-400"
+                  animate={{ opacity: [1, 0.3, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+                Server Online
+              </motion.div>
             </motion.div>
-            {/* Label below */}
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
-              className="flex items-center gap-2 text-[11px] text-muted-foreground font-semibold uppercase tracking-widest"
-            >
-              <motion.span
-                className="w-1.5 h-1.5 rounded-full bg-green-400"
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              />
-              Server Online
-            </motion.div>
-          </motion.div>
+          )}
 
           </div>
         </div>

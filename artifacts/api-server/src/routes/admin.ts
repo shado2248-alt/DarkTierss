@@ -152,6 +152,11 @@ router.get("/admin/analytics", async (req, res): Promise<void> => {
 
 // ── SETTINGS ────────────────────────────────────────────────────────────────────
 router.patch("/admin/settings", async (req, res): Promise<void> => {
+  const session = req.session as any;
+  if (!session?.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, session.userId));
+  if (!me || me.role !== "owner") { res.status(403).json({ error: "Only owners can change platform settings." }); return; }
+
   const { serverIp, discordUrl } = req.body ?? {};
   const { discordWebhookUrl } = req.body ?? {};
   const upsert = async (key: string, value: string) => {
