@@ -8,14 +8,10 @@ import {
   fetchTierResults, deduplicateByPlayer, abbreviateRank, timeAgo,
   RANK_COLOR, type TierResult,
 } from "@/lib/tierlist-api";
-import rank1Bg from "@assets/IMG_20260608_073725_1780884749668.jpg";
-import rank2Bg from "@assets/IMG_20260608_073742_1780884749726.jpg";
-import rank3Bg from "@assets/IMG_20260608_073803_1780884749748.jpg";
-
-const RANK_ROW_BG: Record<number, string> = {
-  0: rank1Bg,
-  1: rank3Bg,
-  2: rank2Bg,
+const RANK_ROW_COLOR: Record<number, string> = {
+  0: "linear-gradient(to bottom, rgba(218,178,0,0.90), rgba(180,142,0,0.84))",
+  1: "linear-gradient(to bottom, rgba(130,150,162,0.88), rgba(100,120,135,0.82))",
+  2: "linear-gradient(to bottom, rgba(172,98,28,0.88), rgba(140,76,14,0.82))",
 };
 
 const EASE = [0.25, 0.1, 0.25, 1] as const;
@@ -431,23 +427,21 @@ export default function Home() {
               <div className="divide-y divide-white/5">
                 {topPlayers.length ? topPlayers.map((entry, i) => {
                   const rankColor = RANK_COLOR[entry.rankEarned] ?? "#94a3b8";
-                  const bg = RANK_ROW_BG[i];
                   return (
                     <div
                       key={entry.resultId}
-                      className="flex items-center gap-3 px-4 py-3 hover:brightness-110 transition-all relative overflow-hidden"
-                      style={bg ? {
-                        backgroundImage: `url(${bg})`,
-                        backgroundSize: "210px auto",
-                        backgroundPosition: "left center",
-                        backgroundRepeat: "no-repeat",
-                        backgroundColor: "transparent",
-                      } : undefined}
+                      className="flex items-center gap-3 px-4 py-3 hover:brightness-105 transition-all relative overflow-hidden"
                     >
+                      {RANK_ROW_COLOR[i] && (
+                        <div className="pointer-events-none absolute inset-0 z-0" style={{
+                          background: RANK_ROW_COLOR[i],
+                          clipPath: "polygon(0 0, 220px 0, 185px 100%, 0 100%)",
+                        }} />
+                      )}
                       <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black z-10
-                        ${i === 0 ? "bg-yellow-400/20 text-yellow-300 border border-yellow-400/40"
-                        : i === 1 ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
-                        : i === 2 ? "bg-blue-400/20 text-blue-300 border border-blue-400/30"
+                        ${i === 0 ? "bg-black/20 text-yellow-100 border border-yellow-300/30"
+                        : i === 1 ? "bg-black/20 text-slate-100 border border-slate-300/30"
+                        : i === 2 ? "bg-black/20 text-orange-100 border border-orange-300/30"
                         : "bg-white/8 text-white/50"}`}>
                         {i + 1}
                       </span>
@@ -522,23 +516,21 @@ export default function Home() {
             <div className="divide-y divide-white/5">
               {topPlayers.length ? topPlayers.map((entry, i) => {
                 const rankColor = RANK_COLOR[entry.rankEarned] ?? "#94a3b8";
-                const bg = RANK_ROW_BG[i];
                 return (
                   <div
                     key={entry.resultId}
-                    className="flex items-center gap-3 px-5 py-3.5 hover:brightness-110 transition-all relative overflow-hidden"
-                    style={bg ? {
-                      backgroundImage: `url(${bg})`,
-                      backgroundSize: "210px auto",
-                      backgroundPosition: "left center",
-                      backgroundRepeat: "no-repeat",
-                      backgroundColor: "transparent",
-                    } : undefined}
+                    className="flex items-center gap-3 px-5 py-3.5 hover:brightness-105 transition-all relative overflow-hidden"
                   >
+                    {RANK_ROW_COLOR[i] && (
+                      <div className="pointer-events-none absolute inset-0 z-0" style={{
+                        background: RANK_ROW_COLOR[i],
+                        clipPath: "polygon(0 0, 230px 0, 195px 100%, 0 100%)",
+                      }} />
+                    )}
                     <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black z-10
-                      ${i === 0 ? "bg-yellow-400/20 text-yellow-300 border border-yellow-400/40"
-                      : i === 1 ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
-                      : i === 2 ? "bg-blue-400/20 text-blue-300 border border-blue-400/30"
+                      ${i === 0 ? "bg-black/20 text-yellow-100 border border-yellow-300/30"
+                      : i === 1 ? "bg-black/20 text-slate-100 border border-slate-300/30"
+                      : i === 2 ? "bg-black/20 text-orange-100 border border-orange-300/30"
                       : "bg-white/8 text-white/60"}`}>
                       {i + 1}
                     </span>

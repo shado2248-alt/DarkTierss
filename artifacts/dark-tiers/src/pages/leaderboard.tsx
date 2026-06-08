@@ -10,9 +10,6 @@ import { Search, Plus, X, Swords, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GamemodeIcon, trophyImg } from "@/lib/gamemode-icons";
 import { fetchTierResults, deduplicateResults, abbreviateRank, RANK_SCORE } from "@/lib/tierlist-api";
-import rank1Bg from "@assets/IMG_20260608_073725_1780884749668.jpg";
-import rank2Bg from "@assets/IMG_20260608_073742_1780884749726.jpg";
-import rank3Bg from "@assets/IMG_20260608_073803_1780884749748.jpg";
 
 const ROLE_RANK: Record<string, number> = { user: 0, tester: 1, moderator: 2, admin: 3, owner: 4 };
 function isStaff(role: string) { return (ROLE_RANK[role] ?? 0) >= 1; }
@@ -187,42 +184,30 @@ function RankBadge({ rank }: { rank: number }) {
 }
 
 /* ── Rank card styles ────────────────────────────────────── */
-const RANK_CARD_STYLE: Record<number, { style: React.CSSProperties; className: string }> = {
+const RANK_CARD_STYLE: Record<number, { style: React.CSSProperties; className: string; diagonalColor: string }> = {
   1: {
     style: {
-      backgroundImage: `url(${rank1Bg})`,
-      backgroundSize: "auto 100%",
-      backgroundPosition: "left center",
-      backgroundRepeat: "no-repeat",
-      backgroundColor: "hsl(var(--card))",
       borderColor: "rgba(255,215,0,0.85)",
-      boxShadow: "0 0 32px rgba(255,215,0,0.28), inset 0 1px 0 rgba(255,255,255,0.20)",
+      boxShadow: "0 0 32px rgba(255,215,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)",
     },
-    className: "border",
+    className: "border bg-card",
+    diagonalColor: "linear-gradient(to bottom, rgba(218,178,0,0.92), rgba(180,142,0,0.86))",
   },
   2: {
     style: {
-      backgroundImage: `url(${rank3Bg})`,
-      backgroundSize: "auto 100%",
-      backgroundPosition: "left center",
-      backgroundRepeat: "no-repeat",
-      backgroundColor: "hsl(var(--card))",
-      borderColor: "rgba(192,192,192,0.78)",
-      boxShadow: "0 0 28px rgba(192,192,192,0.18), inset 0 1px 0 rgba(255,255,255,0.18)",
+      borderColor: "rgba(192,192,192,0.80)",
+      boxShadow: "0 0 28px rgba(192,192,192,0.18), inset 0 1px 0 rgba(255,255,255,0.12)",
     },
-    className: "border",
+    className: "border bg-card",
+    diagonalColor: "linear-gradient(to bottom, rgba(130,150,162,0.90), rgba(100,120,135,0.84))",
   },
   3: {
     style: {
-      backgroundImage: `url(${rank2Bg})`,
-      backgroundSize: "auto 100%",
-      backgroundPosition: "left center",
-      backgroundRepeat: "no-repeat",
-      backgroundColor: "hsl(var(--card))",
-      borderColor: "rgba(205,127,50,0.78)",
-      boxShadow: "0 0 24px rgba(205,127,50,0.20), inset 0 1px 0 rgba(255,255,255,0.15)",
+      borderColor: "rgba(205,127,50,0.80)",
+      boxShadow: "0 0 24px rgba(205,127,50,0.20), inset 0 1px 0 rgba(255,255,255,0.10)",
     },
-    className: "border",
+    className: "border bg-card",
+    diagonalColor: "linear-gradient(to bottom, rgba(172,98,28,0.90), rgba(140,76,14,0.84))",
   },
 };
 
@@ -249,17 +234,28 @@ function PlayerCard({
       }`}
       style={medal?.style}
     >
-      {/* White glint streak for top 3 */}
+      {/* Solid colour diagonal for top 3 — covers rank + skin + player name */}
       {medal && (
         <div
-          className="pointer-events-none absolute inset-0 z-0 rounded-xl"
+          className="pointer-events-none absolute inset-0 z-0"
           style={{
-            background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.07) 48%, rgba(255,255,255,0.13) 50%, rgba(255,255,255,0.07) 52%, transparent 70%)",
+            background: medal.diagonalColor,
+            clipPath: "polygon(0 0, 440px 0, 360px 100%, 0 100%)",
+          }}
+        />
+      )}
+      {/* Subtle glint shimmer on top */}
+      {medal && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            background: "linear-gradient(105deg, transparent 28%, rgba(255,255,255,0.06) 47%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 53%, transparent 72%)",
+            clipPath: "polygon(0 0, 440px 0, 360px 100%, 0 100%)",
           }}
         />
       )}
       {/* Left — rank + skin */}
-      <div className="flex flex-col items-center justify-center gap-2 px-4 py-4 min-w-[88px] bg-black/20 flex-shrink-0 relative z-10">
+      <div className="flex flex-col items-center justify-center gap-2 px-4 py-4 min-w-[88px] flex-shrink-0 relative z-10">
         <RankBadge rank={player.rank} />
         <img
           src={`https://mc-heads.net/body/${player.uuid}/80`}
