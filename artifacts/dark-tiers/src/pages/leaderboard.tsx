@@ -436,7 +436,11 @@ export default function Leaderboard() {
     return Array.from(byPlayer.values())
       .map((results, i) => {
         const first = results[0];
-        const bestScore = Math.max(...results.map(r => RANK_SCORE[r.rankEarned] ?? 0));
+        // Only count gamemodes where the player actually has a ranked tier
+        const rankedResults = results.filter(r => (RANK_SCORE[r.rankEarned] ?? 0) > 0);
+        const bestScore = rankedResults.length > 0
+          ? Math.max(...rankedResults.map(r => RANK_SCORE[r.rankEarned]!))
+          : 0;
         return {
           rank: 0,
           playerId: -(i + 1),
@@ -444,8 +448,8 @@ export default function Leaderboard() {
           uuid: first.username,
           region: REGION_ABBR[first.region] ?? first.region ?? null,
           overallScore: bestScore,
-          rankedGamemodes: results.length,
-          gamemodes: results.map(r => {
+          rankedGamemodes: rankedResults.length,
+          gamemodes: rankedResults.map(r => {
             const gmSlug = normalizeGamemode(r.gamemode);
             const localGm = gamemodes.find(g => g.slug === gmSlug || g.name.toLowerCase() === gmSlug);
             return {
@@ -460,6 +464,8 @@ export default function Leaderboard() {
           }),
         };
       })
+      // Drop players with no ranked tier at all
+      .filter(p => p.overallScore > 0)
       .sort((a, b) => b.overallScore - a.overallScore);
   })();
 
@@ -467,7 +473,7 @@ export default function Leaderboard() {
   const currentGm = gamemodes?.find(g => g.id.toString() === view);
   const currentGamemodeSlug = currentGm?.slug ?? "";
   const externalGmEntries: LeaderboardEntry[] = deduplicateResults(rawTierlist)
-    .filter(r => normalizeGamemode(r.gamemode) === currentGamemodeSlug)
+    .filter(r => normalizeGamemode(r.gamemode) === currentGamemodeSlug && (RANK_SCORE[r.rankEarned] ?? 0) > 0)
     .sort((a, b) => (RANK_SCORE[b.rankEarned] ?? 0) - (RANK_SCORE[a.rankEarned] ?? 0))
     .map((r, i) => ({
       rank: i + 1,
