@@ -1496,15 +1496,13 @@ function SettingsTab() {
 
 // ── REMOVE TIER (owner panel) ─────────────────────────────────────────────────
 function RemoveTierTab() {
-  const { data: gamemodesData } = useListGamemodes();
-  const { data: tiersData } = useListTiers({});
   const qc = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState<{ id: number; username: string; uuid: string } | null>(null);
   const [removing, setRemoving] = useState<number | null>(null);
-  const [confirm, setConfirm] = useState<{ playerId: number; gamemodeId: number; gamemodeName: string } | null>(null);
+  const [confirm, setConfirm] = useState<{ playerId: number; gamemodeId: number; gamemodeName: string; tierName: string | null } | null>(null);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
@@ -1517,11 +1515,13 @@ function RemoveTierTab() {
     { query: { enabled: debouncedSearch.length >= 1 && !selectedPlayer } as any }
   );
 
-  const players = playersData?.players ?? [];
-  const gamemodes = gamemodesData ?? [];
-  const tiersAll = (tiersData as any[]) ?? [];
+  const { data: playerRatings, refetch: refetchRatings } = useGetPlayerRatings(
+    selectedPlayer?.id ?? 0,
+    { query: { enabled: !!selectedPlayer } as any }
+  );
 
-  const filtered = players;
+  const players = playersData?.players ?? [];
+  const ratings = (playerRatings as any[]) ?? [];
 
   const handleRemove = async () => {
     if (!confirm) return;
@@ -1533,6 +1533,7 @@ function RemoveTierTab() {
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setResult({ ok: true, message: data.message ?? "Tier removed" });
       qc.invalidateQueries();
+      refetchRatings();
     } catch (err: any) {
       setResult({ ok: false, message: err.message ?? "Failed to remove tier" });
     } finally {
@@ -1567,7 +1568,7 @@ function RemoveTierTab() {
 
         {search && !selectedPlayer && (
           <div className="glass-card rounded-xl border border-white/10 overflow-hidden max-h-52 overflow-y-auto">
-            {filtered.slice(0, 20).map(p => (
+            {players.slice(0, 20).map(p => (
               <button
                 key={p.id}
                 onClick={() => { setSelectedPlayer({ id: p.id, username: p.username, uuid: p.uuid }); setSearch(p.username); setResult(null); }}
@@ -1578,7 +1579,7 @@ function RemoveTierTab() {
                 <span className="text-xs text-muted-foreground ml-auto">{p.region ?? ""}</span>
               </button>
             ))}
-            {filtered.length === 0 && <div className="px-4 py-3 text-sm text-muted-foreground/50">No players found.</div>}
+            {players.length === 0 && <div className="px-4 py-3 text-sm text-muted-foreground/50">No players found.</div>}
           </div>
         )}
       </div>
@@ -1588,32 +1589,37 @@ function RemoveTierTab() {
           <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/8 bg-black/20">
             <img src={`https://mc-heads.net/avatar/${selectedPlayer.uuid}/32`} alt={selectedPlayer.username} className="w-8 h-8 rounded bg-black" onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/32"; }} />
             <span className="font-black text-white">{selectedPlayer.username}</span>
+            <span className="text-xs text-muted-foreground ml-2">{ratings.length} rated gamemode{ratings.length !== 1 ? "s" : ""}</span>
             <button onClick={() => { setSelectedPlayer(null); setSearch(""); }} className="ml-auto text-muted-foreground/50 hover:text-muted-foreground"><X className="w-4 h-4" /></button>
           </div>
           <div className="divide-y divide-white/5">
-            {gamemodes.map(gm => {
-              const gmTiers = tiersAll.filter((t: any) => t.gamemodeId === gm.id);
-              return (
-                <div key={gm.id} className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.02]">
-                  <span className="text-sm font-bold text-primary">{gm.name}</span>
+            {ratings.length === 0 ? (
+              <div className="px-5 py-4 text-sm text-muted-foreground/50">This player has no tier ratings to remove.</div>
+            ) : (
+              ratings.map((r: any) => (
+                <div key={r.gamemodeId} className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.02]">
                   <div className="flex items-center gap-3">
-                    {gmTiers.length > 0 && (
-                      <span className="text-xs text-muted-foreground">{gmTiers.length} tiers defined</span>
+                    <span className="text-sm font-bold text-primary">{r.gamemodeName}</span>
+                    {r.tierName && (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded border" style={{ color: r.tierColor ?? "#8b5cf6", borderColor: `${r.tierColor ?? "#8b5cf6"}40`, backgroundColor: `${r.tierColor ?? "#8b5cf6"}15` }}>
+                        {r.tierName}
+                      </span>
                     )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setConfirm({ playerId: selectedPlayer.id, gamemodeId: gm.id, gamemodeName: gm.name })}
-                      disabled={removing === gm.id}
-                      className="h-7 px-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 text-xs"
-                    >
-                      <Trash2 className="w-3 h-3 mr-1" />
-                      Remove
-                    </Button>
+                    <span className="text-xs text-muted-foreground/60">{r.rating} ELO</span>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setConfirm({ playerId: selectedPlayer.id, gamemodeId: r.gamemodeId, gamemodeName: r.gamemodeName, tierName: r.tierName })}
+                    disabled={removing === r.gamemodeId}
+                    className="h-7 px-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 text-xs"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    {removing === r.gamemodeId ? "Removing..." : "Remove"}
+                  </Button>
                 </div>
-              );
-            })}
+              ))
+            )}
           </div>
         </div>
       )}
@@ -1628,7 +1634,7 @@ function RemoveTierTab() {
               <h2 className="text-base font-black text-white">Confirm Remove</h2>
             </div>
             <p className="text-sm text-muted-foreground mb-5">
-              Remove <span className="text-white font-bold">{selectedPlayer?.username}</span>'s tier in <span className="text-white font-bold">{confirm.gamemodeName}</span>? This cannot be undone.
+              Remove <span className="text-white font-bold">{selectedPlayer?.username}</span>'s{confirm.tierName ? <> <span className="text-white font-bold">{confirm.tierName}</span></> : ""} rating in <span className="text-white font-bold">{confirm.gamemodeName}</span>? This cannot be undone.
             </p>
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => setConfirm(null)} className="flex-1 text-muted-foreground">Cancel</Button>
