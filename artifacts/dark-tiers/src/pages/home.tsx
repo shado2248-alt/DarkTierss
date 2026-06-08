@@ -8,6 +8,15 @@ import {
   fetchTierResults, deduplicateByPlayer, abbreviateRank, timeAgo,
   RANK_COLOR, type TierResult,
 } from "@/lib/tierlist-api";
+import rank1Bg from "@assets/IMG_20260608_073725_1780884749668.jpg";
+import rank2Bg from "@assets/IMG_20260608_073742_1780884749726.jpg";
+import rank3Bg from "@assets/IMG_20260608_073803_1780884749748.jpg";
+
+const RANK_ROW_BG: Record<number, string> = {
+  0: rank1Bg,
+  1: rank2Bg,
+  2: rank3Bg,
+};
 
 const EASE = [0.25, 0.1, 0.25, 1] as const;
 
@@ -401,50 +410,77 @@ export default function Home() {
             </motion.div>
           </div>
 
-          {/* ── Hero right: Server IP card ── */}
-          {serverIp && (
-            <motion.div
-              initial={{ opacity: 0, x: 40, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              transition={{ duration: 0.7, delay: 0.45, ease: EASE }}
-              className="hidden lg:flex flex-col items-center gap-4 flex-shrink-0 self-center"
-            >
-              <motion.div
-                className="relative flex items-center gap-4 bg-black/60 border border-white/10 rounded-2xl px-6 py-5 shadow-[0_0_50px_rgba(139,92,246,0.2)]"
-                whileHover={{ scale: 1.04, y: -3, boxShadow: "0 0 70px rgba(139,92,246,0.35)" }}
-                transition={{ duration: 0.25 }}
-              >
-                {/* Subtle glow behind */}
-                <motion.div
-                  className="absolute inset-0 rounded-2xl pointer-events-none"
-                  animate={{ opacity: [0.4, 0.8, 0.4] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  style={{ background: "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(139,92,246,0.07), transparent)" }}
-                />
-                {/* Trophy icon */}
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
-                  <Trophy className="w-6 h-6 text-yellow-400" />
+          {/* ── Hero right: Top Ranked panel ── */}
+          <motion.div
+            initial={{ opacity: 0, x: 40, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.45, ease: EASE }}
+            className="hidden lg:flex flex-col flex-shrink-0 self-center w-80"
+          >
+            <div className="glass-card border border-white/12 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(120,40,200,0.22)]">
+              <div className="px-4 py-3 border-b border-white/8 flex items-center justify-between bg-black/40">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-yellow-400" />
+                  <span className="text-sm font-black text-white">Top Ranked</span>
                 </div>
-                {/* Text */}
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground mb-1">Server IP</div>
-                  <div className="font-black text-white text-xl font-mono leading-none">{serverIp}</div>
+                <Link href="/leaderboard" className="text-[11px] text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5">
+                  Full Board <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              <div className="divide-y divide-white/5">
+                {topPlayers.length ? topPlayers.map((entry, i) => {
+                  const rankColor = RANK_COLOR[entry.rankEarned] ?? "#94a3b8";
+                  const bg = RANK_ROW_BG[i];
+                  return (
+                    <div
+                      key={entry.resultId}
+                      className="flex items-center gap-3 px-4 py-3 hover:brightness-110 transition-all relative overflow-hidden"
+                      style={bg ? {
+                        backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.52) 100%), url(${bg})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      } : undefined}
+                    >
+                      <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black z-10
+                        ${i === 0 ? "bg-yellow-400/20 text-yellow-300 border border-yellow-400/40"
+                        : i === 1 ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
+                        : i === 2 ? "bg-blue-400/20 text-blue-300 border border-blue-400/30"
+                        : "bg-white/8 text-white/50"}`}>
+                        {i + 1}
+                      </span>
+                      <img
+                        src={`https://mc-heads.net/body/${entry.username}/48`}
+                        alt={entry.username}
+                        className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-lg z-10"
+                        onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.username}/32`; }}
+                      />
+                      <span className="flex-1 font-bold text-sm text-white min-w-0 truncate z-10">{entry.username}</span>
+                      <div className="flex flex-col items-end gap-0.5 flex-shrink-0 z-10">
+                        <span className="text-[11px] font-black" style={{ color: rankColor }}>{abbreviateRank(entry.rankEarned)}</span>
+                        <span className="text-[10px] text-white/40">{entry.gamemode}</span>
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div className="px-4 py-8 text-center text-muted-foreground text-sm">No ranked players yet.</div>
+                )}
+              </div>
+
+              {serverIp && (
+                <div className="px-4 py-2.5 bg-black/50 border-t border-white/8 flex items-center gap-2">
+                  <Server className="w-3 h-3 text-primary flex-shrink-0" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">IP</span>
+                  <span className="font-mono font-bold text-white text-xs flex-1">{serverIp}</span>
+                  <motion.span
+                    className="w-1.5 h-1.5 rounded-full bg-green-400"
+                    animate={{ opacity: [1, 0.3, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  />
                 </div>
-              </motion.div>
-              {/* Online pill */}
-              <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
-                className="flex items-center gap-2 text-[11px] text-green-400 font-bold uppercase tracking-widest"
-              >
-                <motion.span
-                  className="w-1.5 h-1.5 rounded-full bg-green-400"
-                  animate={{ opacity: [1, 0.3, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-                Server Online
-              </motion.div>
-            </motion.div>
-          )}
+              )}
+            </div>
+          </motion.div>
 
           </div>
         </div>
@@ -474,7 +510,7 @@ export default function Home() {
           <div className="glass-card border border-white/12 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(120,40,200,0.15)]">
             <div className="px-5 py-3.5 border-b border-white/8 flex items-center justify-between bg-black/30">
               <div className="flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-primary" />
+                <Trophy className="w-4 h-4 text-yellow-400" />
                 <span className="text-sm font-black text-white">Top Ranked</span>
               </div>
               <Link href="/leaderboard" className="text-[11px] text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5">
@@ -484,27 +520,34 @@ export default function Home() {
             <div className="divide-y divide-white/5">
               {topPlayers.length ? topPlayers.map((entry, i) => {
                 const rankColor = RANK_COLOR[entry.rankEarned] ?? "#94a3b8";
+                const bg = RANK_ROW_BG[i];
                 return (
-                  <div key={entry.resultId}
-                    className={`flex items-center gap-3 px-5 py-3.5 hover:bg-white/4 transition-colors
-                      ${i === 0 ? "bg-gradient-to-r from-yellow-500/8 to-transparent" : ""}`}>
-                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black
-                      ${i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]"
-                      : i === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-black"
-                      : i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-black"
+                  <div
+                    key={entry.resultId}
+                    className="flex items-center gap-3 px-5 py-3.5 hover:brightness-110 transition-all relative overflow-hidden"
+                    style={bg ? {
+                      backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.50) 100%), url(${bg})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    } : undefined}
+                  >
+                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black z-10
+                      ${i === 0 ? "bg-yellow-400/20 text-yellow-300 border border-yellow-400/40"
+                      : i === 1 ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
+                      : i === 2 ? "bg-blue-400/20 text-blue-300 border border-blue-400/30"
                       : "bg-white/8 text-white/60"}`}>
                       {i + 1}
                     </span>
                     <img
                       src={`https://mc-heads.net/body/${entry.username}/48`}
                       alt={entry.username}
-                      className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-md"
+                      className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-lg z-10"
                       onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.username}/32`; }}
                     />
-                    <span className="flex-1 font-bold text-sm text-white min-w-0 break-words">{entry.username}</span>
-                    <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                    <span className="flex-1 font-bold text-sm text-white min-w-0 break-words z-10">{entry.username}</span>
+                    <div className="flex flex-col items-end gap-0.5 flex-shrink-0 z-10">
                       <span className="text-[11px] font-black" style={{ color: rankColor }}>{abbreviateRank(entry.rankEarned)}</span>
-                      <span className="text-[10px] text-muted-foreground/40">{entry.gamemode}</span>
+                      <span className="text-[10px] text-white/40">{entry.gamemode}</span>
                     </div>
                   </div>
                 );
@@ -619,86 +662,36 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto px-4"><div className="h-px bg-white/6" /></div>
 
-      {/* ══ DISCORD CTA + TOP RANKED ════════════════════════════ */}
+      {/* ══ DISCORD CTA ═════════════════════════════════════════ */}
       <section className="max-w-7xl mx-auto px-4 py-16">
         <Reveal>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-
-            {/* Discord CTA card */}
-            <div className="glass-card border border-[#5865F2]/25 rounded-2xl p-8 flex flex-col gap-6 bg-gradient-to-br from-[#5865F2]/8 to-transparent h-full">
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-[#5865F2]/20 border border-[#5865F2]/30 flex items-center justify-center flex-shrink-0">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="#5865F2">
+          <div className="glass-card border border-[#5865F2]/25 rounded-2xl overflow-hidden bg-gradient-to-br from-[#5865F2]/10 to-transparent">
+            <div className="flex flex-col lg:flex-row items-center gap-6 px-8 py-8">
+              <div className="flex items-center gap-5 flex-1">
+                <div className="w-16 h-16 rounded-2xl bg-[#5865F2]/20 border border-[#5865F2]/30 flex items-center justify-center flex-shrink-0">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="#5865F2">
                     <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.114 18.1.133 18.113a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
                   </svg>
                 </div>
                 <div>
                   <h2 className="text-xl font-black text-white">Join the Community on Discord</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Get notified of tier changes, find matches, and connect with players.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Get notified of tier changes, find matches, and connect with competitive players.</p>
                 </div>
               </div>
-              <a href={discordUrl} target="_blank" rel="noreferrer"
-                className="self-start inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(88,101,242,0.4)]">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.114 18.1.133 18.113a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
-                </svg>
-                Join Now
-              </a>
-            </div>
-
-            {/* Top Ranked card (desktop only — mobile has it below hero) */}
-            <div className="glass-card border border-white/12 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(120,40,200,0.18)] hidden lg:block">
-              <div className="px-5 py-3.5 border-b border-white/8 flex items-center justify-between bg-black/30">
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-black text-white">Top Ranked</span>
-                </div>
-                <Link href="/leaderboard" className="text-[11px] text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5">
-                  Full Board <ChevronRight className="w-3 h-3" />
-                </Link>
-              </div>
-              <div className="divide-y divide-white/5">
-                {topPlayers.length ? topPlayers.map((entry, i) => {
-                  const rankColor = RANK_COLOR[entry.rankEarned] ?? "#94a3b8";
-                  return (
-                    <div key={entry.resultId}
-                      className={`flex items-center gap-3 px-5 py-3 hover:bg-white/4 transition-colors
-                        ${i === 0 ? "bg-gradient-to-r from-yellow-500/8 to-transparent" : ""}`}>
-                      <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black
-                        ${i === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]"
-                        : i === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-black"
-                        : i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-600 text-black"
-                        : "bg-white/8 text-white/60"}`}>
-                        {i + 1}
-                      </span>
-                      <img
-                        src={`https://mc-heads.net/body/${entry.username}/48`}
-                        alt={entry.username}
-                        className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-md"
-                        onError={e => { (e.target as HTMLImageElement).src = `https://mc-heads.net/avatar/${entry.username}/32`; }}
-                      />
-                      <span className="flex-1 font-bold text-sm text-white min-w-0 truncate">{entry.username}</span>
-                      <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                        <span className="text-[11px] font-black" style={{ color: rankColor }}>{abbreviateRank(entry.rankEarned)}</span>
-                        <span className="text-[10px] text-muted-foreground/40">{entry.gamemode}</span>
-                      </div>
-                    </div>
-                  );
-                }) : (
-                  <div className="px-5 py-8 text-center text-muted-foreground text-sm">No ranked players yet.</div>
-                )}
-              </div>
-              <div className="px-5 py-3 bg-black/20 border-t border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Users className="w-3 h-3" />
-                  {tierResults.length} results
-                </div>
-                <Link href="/leaderboard" className="text-[11px] text-primary hover:text-primary/80 transition-colors">
-                  Full Board
+              <div className="flex flex-wrap gap-3 flex-shrink-0">
+                <a href={discordUrl} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(88,101,242,0.45)]">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.1 18.08.114 18.1.133 18.113a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                  </svg>
+                  Join Now
+                </a>
+                <Link href="/leaderboard"
+                  className="inline-flex items-center gap-2 border border-white/15 text-white/70 hover:text-white hover:border-white/30 px-7 py-3.5 rounded-xl font-bold text-sm transition-all hover:bg-white/5">
+                  View Leaderboard <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
-
           </div>
         </Reveal>
       </section>

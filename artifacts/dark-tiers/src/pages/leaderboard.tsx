@@ -10,6 +10,9 @@ import { Search, Plus, X, Swords, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GamemodeIcon, trophyImg } from "@/lib/gamemode-icons";
 import { fetchTierResults, deduplicateResults, abbreviateRank, RANK_SCORE } from "@/lib/tierlist-api";
+import rank1Bg from "@assets/IMG_20260608_073725_1780884749668.jpg";
+import rank2Bg from "@assets/IMG_20260608_073742_1780884749726.jpg";
+import rank3Bg from "@assets/IMG_20260608_073803_1780884749748.jpg";
 
 const ROLE_RANK: Record<string, number> = { user: 0, tester: 1, moderator: 2, admin: 3, owner: 4 };
 function isStaff(role: string) { return (ROLE_RANK[role] ?? 0) >= 1; }
@@ -187,25 +190,31 @@ function RankBadge({ rank }: { rank: number }) {
 const RANK_CARD_STYLE: Record<number, { style: React.CSSProperties; className: string }> = {
   1: {
     style: {
-      background: "linear-gradient(135deg, rgba(255,215,0,0.18) 0%, rgba(255,200,0,0.06) 48%, rgba(255,255,255,0.10) 50%, rgba(255,200,0,0.06) 52%, rgba(255,215,0,0.14) 100%)",
-      borderColor: "rgba(255,215,0,0.75)",
-      boxShadow: "0 0 24px rgba(255,215,0,0.18), inset 0 1px 0 rgba(255,255,255,0.35)",
+      backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.42) 100%), url(${rank1Bg})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      borderColor: "rgba(255,215,0,0.80)",
+      boxShadow: "0 0 32px rgba(255,215,0,0.28), inset 0 1px 0 rgba(255,255,255,0.25)",
     },
     className: "border",
   },
   2: {
     style: {
-      background: "linear-gradient(135deg, rgba(192,192,192,0.18) 0%, rgba(180,180,180,0.06) 48%, rgba(255,255,255,0.12) 50%, rgba(180,180,180,0.06) 52%, rgba(192,192,192,0.14) 100%)",
-      borderColor: "rgba(192,192,192,0.72)",
-      boxShadow: "0 0 20px rgba(192,192,192,0.15), inset 0 1px 0 rgba(255,255,255,0.38)",
+      backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.42) 100%), url(${rank2Bg})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      borderColor: "rgba(205,127,50,0.78)",
+      boxShadow: "0 0 28px rgba(205,127,50,0.22), inset 0 1px 0 rgba(255,255,255,0.20)",
     },
     className: "border",
   },
   3: {
     style: {
-      background: "linear-gradient(135deg, rgba(205,127,50,0.20) 0%, rgba(180,100,30,0.07) 48%, rgba(255,255,255,0.10) 50%, rgba(180,100,30,0.07) 52%, rgba(205,127,50,0.16) 100%)",
-      borderColor: "rgba(205,127,50,0.72)",
-      boxShadow: "0 0 20px rgba(205,127,50,0.18), inset 0 1px 0 rgba(255,255,255,0.30)",
+      backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.42) 100%), url(${rank3Bg})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      borderColor: "rgba(140,165,180,0.72)",
+      boxShadow: "0 0 24px rgba(140,165,180,0.18), inset 0 1px 0 rgba(255,255,255,0.18)",
     },
     className: "border",
   },
