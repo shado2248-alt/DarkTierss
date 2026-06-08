@@ -3,11 +3,14 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import path from "path";
+import fs from "fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Trust one layer of proxy (Replit, nginx, Cloudflare, etc.)
 app.set("trust proxy", 1);
 
 app.use(
@@ -15,37 +18,38 @@ app.use(
     logger,
     serializers: {
       req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
+        return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
       },
       res(res) {
-        return {
-          statusCode: res.statusCode,
-        };
+        return { statusCode: res.statusCode };
       },
     },
   }),
 );
 
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
 app.use(
   cors({
-    origin: true,
+    origin: allowedOrigin ? allowedOrigin : true,
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const sessionSecret = process.env.SESSION_SECRET ?? "dark-tiers-secret-change-me";
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret || sessionSecret === "dark-tiers-secret-change-me") {
+  if (process.env.NODE_ENV === "production") {
+    logger.warn("SESSION_SECRET is not set or is using the default. Set a strong random secret in production.");
+  }
+}
+
 const PgSession = connectPgSimple(session);
 
-// When running behind Replit's HTTPS proxy (or any HTTPS proxy), cookies must
-// be Secure + SameSite=None so they survive the iframe / cross-origin context.
-const behindProxy = !!process.env.REPLIT_DOMAINS;
+// behindProxy = true when running behind an HTTPS reverse proxy.
+// Replit sets REPLIT_DOMAINS; for self-hosting set TRUST_PROXY=true in your env.
+const behindProxy = !!process.env.REPLIT_DOMAINS || process.env.TRUST_PROXY === "true";
 
 app.use(
   session({
@@ -56,18 +60,31 @@ app.use(
           createTableIfMissing: true,
         })
       : undefined,
-    secret: sessionSecret,
+    secret: sessionSecret ?? "dark-tiers-secret-change-me",
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: behindProxy,
       sameSite: behindProxy ? "none" : "lax",
       httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     },
-  })
+  }),
 );
 
 app.use("/api", router);
+
+// Optional: serve the built frontend from STATIC_DIR so no separate web server
+// is needed. Set STATIC_DIR to the path of the frontend build output, e.g.:
+//   STATIC_DIR=/app/dark-tiers/dist/public
+// The API keeps handling /api; everything else falls through to index.html.
+const staticDir = process.env.STATIC_DIR;
+if (staticDir && fs.existsSync(staticDir)) {
+  logger.info({ staticDir }, "Serving static frontend files");
+  app.use(express.static(staticDir));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(staticDir, "index.html"));
+  });
+}
 
 export default app;
