@@ -11,6 +11,27 @@ export type TierResult = {
   username: string;
 };
 
+/**
+ * Maps every known external gamemode name variant → canonical local slug.
+ * Add new aliases here whenever the external API sends a new variant name.
+ */
+const GAMEMODE_ALIASES: Record<string, string> = {
+  "axe pvp":    "axe",
+  "sword pvp":  "sword",
+  "smp pvp":    "smp",
+  "crystal pvp":"crystal",
+  "uhc pvp":    "uhc",
+  "diapot pvp": "diapot",
+  "nethpot pvp":"nethpot",
+  "mace pvp":   "mace",
+};
+
+/** Returns the canonical lowercase slug for any external gamemode name. */
+export function normalizeGamemode(raw: string): string {
+  const lower = raw.toLowerCase().trim();
+  return GAMEMODE_ALIASES[lower] ?? lower;
+}
+
 export const EXTERNAL_API_URL = "/api/tierlist";
 
 export const RANK_SCORE: Record<string, number> = {
@@ -67,11 +88,12 @@ export async function fetchTierResults(): Promise<TierResult[]> {
   return res.json();
 }
 
-/** Per (username, gamemode): keep most recent result */
+/** Per (username, gamemode): keep most recent result. Uses normalizeGamemode so
+ *  aliases like "Axe Pvp" and "Axe" collapse into the same bucket. */
 export function deduplicateResults(results: TierResult[]): TierResult[] {
   const map = new Map<string, TierResult>();
   for (const r of results) {
-    const key = `${r.username.toLowerCase()}::${r.gamemode.toLowerCase()}`;
+    const key = `${r.username.toLowerCase()}::${normalizeGamemode(r.gamemode)}`;
     const existing = map.get(key);
     if (!existing || new Date(r.timestamp) > new Date(existing.timestamp)) {
       map.set(key, r);

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Plus, X, Swords, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GamemodeIcon, trophyImg } from "@/lib/gamemode-icons";
-import { fetchTierResults, deduplicateResults, abbreviateRank, RANK_SCORE } from "@/lib/tierlist-api";
+import { fetchTierResults, deduplicateResults, abbreviateRank, RANK_SCORE, normalizeGamemode } from "@/lib/tierlist-api";
 
 const ROLE_RANK: Record<string, number> = { user: 0, tester: 1, moderator: 2, admin: 3, owner: 4 };
 function isStaff(role: string) { return (ROLE_RANK[role] ?? 0) >= 1; }
@@ -445,24 +445,29 @@ export default function Leaderboard() {
           region: REGION_ABBR[first.region] ?? first.region ?? null,
           overallScore: bestScore,
           rankedGamemodes: results.length,
-          gamemodes: results.map(r => ({
-            gamemodeId: gamemodes.find(g => g.name.toLowerCase() === r.gamemode.toLowerCase())?.id ?? 0,
-            gamemodeName: r.gamemode,
-            gamemodeSlug: r.gamemode.toLowerCase(),
-            tierName: abbreviateRank(r.rankEarned),
-            tierColor: null,
-            rating: null,
-            peakRating: null,
-          })),
+          gamemodes: results.map(r => {
+            const gmSlug = normalizeGamemode(r.gamemode);
+            const localGm = gamemodes.find(g => g.slug === gmSlug || g.name.toLowerCase() === gmSlug);
+            return {
+              gamemodeId: localGm?.id ?? 0,
+              gamemodeName: localGm?.name ?? r.gamemode,
+              gamemodeSlug: gmSlug,
+              tierName: abbreviateRank(r.rankEarned),
+              tierColor: null,
+              rating: null,
+              peakRating: null,
+            };
+          }),
         };
       })
       .sort((a, b) => b.overallScore - a.overallScore);
   })();
 
   /* Convert external results → LeaderboardEntry rows for per-gamemode tabs */
-  const currentGamemodeName = gamemodes?.find(g => g.id.toString() === view)?.name ?? "";
+  const currentGm = gamemodes?.find(g => g.id.toString() === view);
+  const currentGamemodeSlug = currentGm?.slug ?? "";
   const externalGmEntries: LeaderboardEntry[] = deduplicateResults(rawTierlist)
-    .filter(r => r.gamemode.toLowerCase() === currentGamemodeName.toLowerCase())
+    .filter(r => normalizeGamemode(r.gamemode) === currentGamemodeSlug)
     .sort((a, b) => (RANK_SCORE[b.rankEarned] ?? 0) - (RANK_SCORE[a.rankEarned] ?? 0))
     .map((r, i) => ({
       rank: i + 1,
