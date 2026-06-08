@@ -14,8 +14,8 @@ import rank3Bg from "@assets/IMG_20260608_073803_1780884749748.jpg";
 
 const RANK_ROW_BG: Record<number, string> = {
   0: rank1Bg,
-  1: rank2Bg,
-  2: rank3Bg,
+  1: rank3Bg,
+  2: rank2Bg,
 };
 
 const EASE = [0.25, 0.1, 0.25, 1] as const;
@@ -437,9 +437,11 @@ export default function Home() {
                       key={entry.resultId}
                       className="flex items-center gap-3 px-4 py-3 hover:brightness-110 transition-all relative overflow-hidden"
                       style={bg ? {
-                        backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.52) 100%), url(${bg})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
+                        backgroundImage: `url(${bg})`,
+                        backgroundSize: "210px auto",
+                        backgroundPosition: "left center",
+                        backgroundRepeat: "no-repeat",
+                        backgroundColor: "transparent",
                       } : undefined}
                     >
                       <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black z-10
@@ -526,9 +528,11 @@ export default function Home() {
                     key={entry.resultId}
                     className="flex items-center gap-3 px-5 py-3.5 hover:brightness-110 transition-all relative overflow-hidden"
                     style={bg ? {
-                      backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.50) 100%), url(${bg})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
+                      backgroundImage: `url(${bg})`,
+                      backgroundSize: "210px auto",
+                      backgroundPosition: "left center",
+                      backgroundRepeat: "no-repeat",
+                      backgroundColor: "transparent",
                     } : undefined}
                   >
                     <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black z-10
