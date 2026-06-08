@@ -49,7 +49,7 @@ const PgSession = connectPgSimple(session);
 
 // behindProxy = true when running behind an HTTPS reverse proxy.
 // Replit sets REPLIT_DOMAINS; for self-hosting set TRUST_PROXY=true in your env.
-const behindProxy = !!process.env.REPLIT_DOMAINS || process.env.TRUST_PROXY === "true";
+const behindProxy = !!process.env.REPLIT_DOMAINS || process.env.TRUST_PROXY === "true" || !!process.env.VERCEL;
 
 app.use(
   session({
