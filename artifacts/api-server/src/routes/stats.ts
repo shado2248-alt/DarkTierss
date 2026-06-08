@@ -8,7 +8,12 @@ router.get("/settings", async (_req, res): Promise<void> => {
   const rows = await db.select().from(settingsTable);
   const map: Record<string, string> = {};
   for (const r of rows) map[r.key] = r.value;
-  res.json({ serverIp: map.serverIp ?? "", discordUrl: map.discordUrl ?? "", discordWebhookUrl: map.discordWebhookUrl ?? "" });
+  res.json({
+    serverIp: map.serverIp ?? "",
+    discordUrl: map.discordUrl ?? "",
+    discordWebhookUrl: map.discordWebhookUrl ?? "",
+    leaderboardStartDate: map.leaderboard_start_date ?? "",
+  });
 });
 
 router.get("/staff", async (_req, res): Promise<void> => {

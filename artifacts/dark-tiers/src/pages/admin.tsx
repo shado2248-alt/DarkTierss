@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type AdminTab =
   | "overview" | "user-role" | "tier-result"
-  | "users" | "players" | "ratings" | "gamemodes" | "tiers" | "promotions" | "settings"
+  | "users" | "players" | "ratings" | "gamemodes" | "tiers" | "promotions" | "settings" | "remove-tier"
   | "matches" | "tests" | "announcements" | "audit-log";
 
 const COLORS = ["#8b5cf6", "#6366f1", "#f97316", "#22c55e", "#ec4899", "#14b8a6", "#f43f5e", "#a855f7", "#06b6d4", "#84cc16"];
@@ -69,14 +69,15 @@ const TAB_GROUPS: TabGroup[] = [
     minRole: "owner",
     color: "text-yellow-400 border-yellow-500/40",
     tabs: [
-      { id: "users",      label: "Users & Staff", icon: <Users className="w-4 h-4" /> },
-      { id: "players",    label: "Players",       icon: <ShieldCheck className="w-4 h-4" /> },
-      { id: "ratings",    label: "Ratings",       icon: <RefreshCw className="w-4 h-4" /> },
-      { id: "gamemodes",  label: "Gamemodes",     icon: <Gamepad2 className="w-4 h-4" /> },
-      { id: "tiers",      label: "Tiers",         icon: <Layers className="w-4 h-4" /> },
-      { id: "promotions", label: "Promotions",    icon: <TrendingUp className="w-4 h-4" /> },
-      { id: "audit-log",  label: "Audit Log",     icon: <ClipboardList className="w-4 h-4" /> },
-      { id: "settings",   label: "Settings",      icon: <Globe className="w-4 h-4" /> },
+      { id: "users",       label: "Users & Staff", icon: <Users className="w-4 h-4" /> },
+      { id: "players",     label: "Players",       icon: <ShieldCheck className="w-4 h-4" /> },
+      { id: "ratings",     label: "Ratings",       icon: <RefreshCw className="w-4 h-4" /> },
+      { id: "remove-tier", label: "Remove Tier",   icon: <Trash2 className="w-4 h-4" /> },
+      { id: "gamemodes",   label: "Gamemodes",     icon: <Gamepad2 className="w-4 h-4" /> },
+      { id: "tiers",       label: "Tiers",         icon: <Layers className="w-4 h-4" /> },
+      { id: "promotions",  label: "Promotions",    icon: <TrendingUp className="w-4 h-4" /> },
+      { id: "audit-log",   label: "Audit Log",     icon: <ClipboardList className="w-4 h-4" /> },
+      { id: "settings",    label: "Settings",      icon: <Globe className="w-4 h-4" /> },
     ],
   },
 ];
@@ -1338,7 +1339,7 @@ function SettingsTab() {
   const updateSettings = useUpdateSettings();
   const settings = data as any;
 
-  const [form, setForm] = useState({ serverIp: "", discordUrl: "", discordWebhookUrl: "" });
+  const [form, setForm] = useState({ serverIp: "", discordUrl: "", discordWebhookUrl: "", leaderboardStartDate: "" });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -1348,15 +1349,16 @@ function SettingsTab() {
         serverIp: settings.serverIp ?? "",
         discordUrl: settings.discordUrl ?? "",
         discordWebhookUrl: settings.discordWebhookUrl ?? "",
+        leaderboardStartDate: settings.leaderboardStartDate ?? "",
       });
     }
-  }, [settings?.serverIp, settings?.discordUrl, settings?.discordWebhookUrl]);
+  }, [settings?.serverIp, settings?.discordUrl, settings?.discordWebhookUrl, settings?.leaderboardStartDate]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true); setSaved(false);
     try {
-      await updateSettings.mutateAsync({ data: { serverIp: form.serverIp, discordUrl: form.discordUrl, discordWebhookUrl: form.discordWebhookUrl } as any });
+      await updateSettings.mutateAsync({ data: { serverIp: form.serverIp, discordUrl: form.discordUrl, discordWebhookUrl: form.discordWebhookUrl, leaderboardStartDate: form.leaderboardStartDate } as any });
       refetch(); setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } finally { setSaving(false); }
@@ -1401,6 +1403,28 @@ function SettingsTab() {
             className="bg-black/40 border-white/10 text-white font-mono text-xs"
           />
           <p className="text-[10px] text-muted-foreground/50 mt-1">Match results, tier promotions, and announcements will be auto-posted here. Leave blank to disable.</p>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Leaderboard Start Date</label>
+          <Input
+            type="date"
+            value={form.leaderboardStartDate}
+            onChange={e => setForm(f => ({ ...f, leaderboardStartDate: e.target.value }))}
+            className="bg-black/40 border-white/10 text-white"
+          />
+          <p className="text-[10px] text-muted-foreground/50 mt-1">
+            Only players with ratings updated on or after this date appear on the leaderboard. Leave blank to show all time.
+          </p>
+          {form.leaderboardStartDate && (
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, leaderboardStartDate: "" }))}
+              className="text-[10px] text-red-400/70 hover:text-red-400 mt-1 underline"
+            >
+              Clear (show all time)
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -1466,6 +1490,147 @@ function SettingsTab() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── REMOVE TIER (owner panel) ─────────────────────────────────────────────────
+function RemoveTierTab() {
+  const { data: playersData } = useListPlayers({ limit: 500 });
+  const { data: gamemodesData } = useListGamemodes();
+  const { data: tiersData } = useListTiers({});
+  const qc = useQueryClient();
+
+  const [search, setSearch] = useState("");
+  const [selectedPlayer, setSelectedPlayer] = useState<{ id: number; username: string; uuid: string } | null>(null);
+  const [removing, setRemoving] = useState<number | null>(null);
+  const [confirm, setConfirm] = useState<{ playerId: number; gamemodeId: number; gamemodeName: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const players = playersData?.players ?? [];
+  const gamemodes = gamemodesData ?? [];
+  const tiersAll = (tiersData as any[]) ?? [];
+
+  const filtered = players.filter(p =>
+    !search || p.username.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleRemove = async () => {
+    if (!confirm) return;
+    setRemoving(confirm.gamemodeId);
+    setResult(null);
+    try {
+      const res = await fetch(`/api/admin/players/${confirm.playerId}/ratings/${confirm.gamemodeId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setResult({ ok: true, message: data.message ?? "Tier removed" });
+      qc.invalidateQueries();
+    } catch (err: any) {
+      setResult({ ok: false, message: err.message ?? "Failed to remove tier" });
+    } finally {
+      setRemoving(null);
+      setConfirm(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6 max-w-2xl">
+      <div className="glass-card rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-muted-foreground">
+        Remove a specific gamemode tier from any player. The player remains on the platform — only their tier/rating for that mode is deleted.
+        <span className="text-red-400 font-bold"> This cannot be undone.</span>
+      </div>
+
+      {result && (
+        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+          className={`rounded-lg px-4 py-3 text-sm font-semibold border ${result.ok ? "bg-green-500/10 text-green-400 border-green-500/30" : "bg-red-500/10 text-red-400 border-red-500/30"}`}>
+          {result.message}
+        </motion.div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        <div className="relative">
+          <Input
+            placeholder="Search player by username..."
+            value={search}
+            onChange={e => { setSearch(e.target.value); setSelectedPlayer(null); setResult(null); }}
+            className="bg-black/40 border-white/10 text-white"
+          />
+        </div>
+
+        {search && !selectedPlayer && (
+          <div className="glass-card rounded-xl border border-white/10 overflow-hidden max-h-52 overflow-y-auto">
+            {filtered.slice(0, 20).map(p => (
+              <button
+                key={p.id}
+                onClick={() => { setSelectedPlayer({ id: p.id, username: p.username, uuid: p.uuid }); setSearch(p.username); setResult(null); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left border-b border-white/5 last:border-0"
+              >
+                <img src={`https://mc-heads.net/avatar/${p.uuid}/28`} alt={p.username} className="w-7 h-7 rounded bg-black flex-shrink-0" onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/28"; }} />
+                <span className="font-semibold text-white text-sm">{p.username}</span>
+                <span className="text-xs text-muted-foreground ml-auto">{p.region ?? ""}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && <div className="px-4 py-3 text-sm text-muted-foreground/50">No players found.</div>}
+          </div>
+        )}
+      </div>
+
+      {selectedPlayer && (
+        <div className="glass-card rounded-xl border border-white/10 overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/8 bg-black/20">
+            <img src={`https://mc-heads.net/avatar/${selectedPlayer.uuid}/32`} alt={selectedPlayer.username} className="w-8 h-8 rounded bg-black" onError={e => { (e.target as HTMLImageElement).src = "https://mc-heads.net/avatar/steve/32"; }} />
+            <span className="font-black text-white">{selectedPlayer.username}</span>
+            <button onClick={() => { setSelectedPlayer(null); setSearch(""); }} className="ml-auto text-muted-foreground/50 hover:text-muted-foreground"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="divide-y divide-white/5">
+            {gamemodes.map(gm => {
+              const gmTiers = tiersAll.filter((t: any) => t.gamemodeId === gm.id);
+              return (
+                <div key={gm.id} className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.02]">
+                  <span className="text-sm font-bold text-primary">{gm.name}</span>
+                  <div className="flex items-center gap-3">
+                    {gmTiers.length > 0 && (
+                      <span className="text-xs text-muted-foreground">{gmTiers.length} tiers defined</span>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setConfirm({ playerId: selectedPlayer.id, gamemodeId: gm.id, gamemodeName: gm.name })}
+                      disabled={removing === gm.id}
+                      className="h-7 px-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 text-xs"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {confirm && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setConfirm(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="relative z-10 glass-card border border-red-500/30 rounded-2xl p-6 w-full max-w-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Trash2 className="w-4 h-4 text-red-400" />
+              <h2 className="text-base font-black text-white">Confirm Remove</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5">
+              Remove <span className="text-white font-bold">{selectedPlayer?.username}</span>'s tier in <span className="text-white font-bold">{confirm.gamemodeName}</span>? This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setConfirm(null)} className="flex-1 text-muted-foreground">Cancel</Button>
+              <Button size="sm" onClick={handleRemove} disabled={removing !== null} className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30">
+                {removing !== null ? "Removing..." : "Remove Tier"}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1563,6 +1728,7 @@ export default function Admin() {
           {tab === "users"         && <UsersTab myRole={myRole} myId={(user as any).id} />}
           {tab === "players"       && <PlayersTab />}
           {tab === "ratings"       && <RatingsTab />}
+          {tab === "remove-tier"   && <RemoveTierTab />}
           {tab === "gamemodes"     && <GamemodesTab />}
           {tab === "tiers"         && <TiersTab />}
           {tab === "promotions"    && <PromotionsTab />}

@@ -157,8 +157,7 @@ router.patch("/admin/settings", async (req, res): Promise<void> => {
   const [me] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, session.userId));
   if (!me || me.role !== "owner") { res.status(403).json({ error: "Only owners can change platform settings." }); return; }
 
-  const { serverIp, discordUrl } = req.body ?? {};
-  const { discordWebhookUrl } = req.body ?? {};
+  const { serverIp, discordUrl, discordWebhookUrl, leaderboardStartDate } = req.body ?? {};
   const upsert = async (key: string, value: string) => {
     await db.insert(settingsTable).values({ key, value })
       .onConflictDoUpdate({ target: settingsTable.key, set: { value, updatedAt: new Date() } });
@@ -166,10 +165,16 @@ router.patch("/admin/settings", async (req, res): Promise<void> => {
   if (serverIp !== undefined) await upsert("serverIp", String(serverIp));
   if (discordUrl !== undefined) await upsert("discordUrl", String(discordUrl));
   if (discordWebhookUrl !== undefined) await upsert("discordWebhookUrl", String(discordWebhookUrl));
+  if (leaderboardStartDate !== undefined) await upsert("leaderboard_start_date", String(leaderboardStartDate));
   const rows = await db.select().from(settingsTable);
   const map: Record<string, string> = {};
   for (const r of rows) map[r.key] = r.value;
-  res.json({ serverIp: map.serverIp ?? "", discordUrl: map.discordUrl ?? "", discordWebhookUrl: map.discordWebhookUrl ?? "" });
+  res.json({
+    serverIp: map.serverIp ?? "",
+    discordUrl: map.discordUrl ?? "",
+    discordWebhookUrl: map.discordWebhookUrl ?? "",
+    leaderboardStartDate: map.leaderboard_start_date ?? "",
+  });
 });
 
 // ── PROMOTIONS ──────────────────────────────────────────────────────────────────
@@ -399,6 +404,32 @@ router.post("/admin/players/:id/change-tier", async (req, res): Promise<void> =>
   }).catch(() => {});
 
   res.json({ id: player.id, username: player.username, uuid: player.uuid, region: player.region, country: player.country, userId: player.userId, createdAt: player.createdAt.toISOString(), updatedAt: player.updatedAt.toISOString() });
+});
+
+// ── REMOVE SINGLE GAMEMODE TIER (owner only) ───────────────────────────────────
+router.delete("/admin/players/:id/ratings/:gamemodeId", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id);
+  const gamemodeId = parseInt(req.params.gamemodeId);
+  if (isNaN(id) || isNaN(gamemodeId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const sessionUserId = (req.session as any)?.userId as number | undefined;
+  if (!sessionUserId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const [actor] = await db.select().from(usersTable).where(eq(usersTable.id, sessionUserId));
+  if (!actor || actor.role !== "owner") { res.status(403).json({ error: "Owner only" }); return; }
+
+  const [player] = await db.select().from(playersTable).where(eq(playersTable.id, id));
+  if (!player) { res.status(404).json({ error: "Player not found" }); return; }
+
+  await db.delete(playerRatingsTable).where(and(eq(playerRatingsTable.playerId, id), eq(playerRatingsTable.gamemodeId, gamemodeId)));
+
+  db.insert(auditLogsTable).values({
+    actorId: sessionUserId,
+    actorName: actor.displayName ?? actor.username ?? "Owner",
+    action: "tier_removed",
+    details: { playerUsername: player.username, playerId: player.id, gamemodeId },
+  }).catch(() => {});
+
+  res.json({ success: true, message: `Removed tier for "${player.username}" in gamemode #${gamemodeId}` });
 });
 
 // ── REMOVE ALL TIERS (owner only) ──────────────────────────────────────────────

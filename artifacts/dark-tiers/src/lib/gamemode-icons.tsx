@@ -7,6 +7,8 @@ import uhcImg from "@assets/uhc_1780748732694.png";
 import diaImg from "@assets/pot_1780748732662.png";
 import nethImg from "@assets/nethop_1780748732641.png";
 import maceImg from "@assets/mace_1780748732756.png";
+import cartImg from "@assets/hrua_1780883788985.png";
+import manhuntImg from "@assets/minecraft-pocket-edition-compass-item-wiki-minecraft_1780883794744.jpg";
 
 const SLUG_ICONS: Record<string, string> = {
   overall: trophyImg,
@@ -18,6 +20,8 @@ const SLUG_ICONS: Record<string, string> = {
   diapot: diaImg,
   nethpot: nethImg,
   mace: maceImg,
+  cart: cartImg,
+  manhunt: manhuntImg,
 };
 
 const NAME_ICONS: Record<string, string> = {
@@ -30,6 +34,8 @@ const NAME_ICONS: Record<string, string> = {
   DiaPot: diaImg,
   NethPot: nethImg,
   Mace: maceImg,
+  Cart: cartImg,
+  Manhunt: manhuntImg,
 };
 
 export function getGamemodeIcon(slugOrName: string): string | undefined {

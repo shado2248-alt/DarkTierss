@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, playersTable, playerRatingsTable, tiersTable, gamemodesTable } from "@workspace/db";
+import { db, playersTable, playerRatingsTable, tiersTable, gamemodesTable, settingsTable } from "@workspace/db";
 import { eq, ilike, desc, sql, and } from "drizzle-orm";
 import { GetLeaderboardQueryParams } from "@workspace/api-zod";
 
@@ -183,18 +183,25 @@ router.get("/leaderboard/overall", async (_req, res): Promise<void> => {
   // Get all gamemodes
   const gamemodes = await db.select().from(gamemodesTable).orderBy(gamemodesTable.id);
 
-  // Get all players who have at least one rating with a tier assigned
+  // Read leaderboard start date from settings
+  const startDateSetting = await db.select().from(settingsTable).where(eq(settingsTable.key, "leaderboard_start_date"));
+  const startDate = startDateSetting[0]?.value ?? null;
+  const startDateFilter = startDate
+    ? sql`AND pr.updated_at >= ${startDate}::timestamptz`
+    : sql``;
+
+  // Get all players who have at least one rating with a tier assigned (deduplicated by lowercase username)
   const rows = await db.execute<{
     player_id: number;
     username: string;
     uuid: string;
     region: string;
   }>(
-    sql`SELECT DISTINCT p.id AS player_id, p.username, p.uuid, p.region
+    sql`SELECT DISTINCT ON (LOWER(p.username)) p.id AS player_id, p.username, p.uuid, p.region
         FROM players p
         INNER JOIN player_ratings pr ON pr.player_id = p.id
-        WHERE pr.tier_id IS NOT NULL
-        ORDER BY p.username`
+        WHERE pr.tier_id IS NOT NULL ${startDateFilter}
+        ORDER BY LOWER(p.username), p.id ASC`
   );
 
   const players = rows.rows;

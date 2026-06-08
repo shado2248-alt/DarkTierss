@@ -177,9 +177,9 @@ function RegionBadge({ region }: { region: string | null }) {
 /* ── Rank number badge ───────────────────────────────────── */
 function RankBadge({ rank }: { rank: number }) {
   const base = "text-3xl font-black tabular-nums";
-  if (rank === 1) return <span className={`${base} text-yellow-400`}>{rank}.</span>;
-  if (rank === 2) return <span className={`${base} text-slate-300`}>{rank}.</span>;
-  if (rank === 3) return <span className={`${base} text-orange-400`}>{rank}.</span>;
+  if (rank === 1) return <span className={base} style={{ color: "#FFD700", textShadow: "0 0 12px rgba(255,215,0,0.6)" }}>{rank}.</span>;
+  if (rank === 2) return <span className={base} style={{ color: "#C0C0C0", textShadow: "0 0 10px rgba(192,192,192,0.5)" }}>{rank}.</span>;
+  if (rank === 3) return <span className={base} style={{ color: "#CD7F32", textShadow: "0 0 10px rgba(205,127,50,0.5)" }}>{rank}.</span>;
   return <span className={`${base} text-muted-foreground/50`}>{rank}.</span>;
 }
 
@@ -187,24 +187,27 @@ function RankBadge({ rank }: { rank: number }) {
 const RANK_CARD_STYLE: Record<number, { style: React.CSSProperties; className: string }> = {
   1: {
     style: {
-      background: "linear-gradient(120deg, rgba(251,191,36,0.18) 0%, rgba(161,117,0,0.08) 100%)",
-      borderColor: "rgba(251,191,36,0.55)",
+      background: "linear-gradient(135deg, rgba(255,215,0,0.18) 0%, rgba(255,200,0,0.06) 48%, rgba(255,255,255,0.10) 50%, rgba(255,200,0,0.06) 52%, rgba(255,215,0,0.14) 100%)",
+      borderColor: "rgba(255,215,0,0.75)",
+      boxShadow: "0 0 24px rgba(255,215,0,0.18), inset 0 1px 0 rgba(255,255,255,0.35)",
     },
-    className: "border gold-ambient",
+    className: "border",
   },
   2: {
     style: {
-      background: "linear-gradient(120deg, rgba(203,213,225,0.16) 0%, rgba(100,116,139,0.07) 100%)",
-      borderColor: "rgba(203,213,225,0.45)",
+      background: "linear-gradient(135deg, rgba(192,192,192,0.18) 0%, rgba(180,180,180,0.06) 48%, rgba(255,255,255,0.12) 50%, rgba(180,180,180,0.06) 52%, rgba(192,192,192,0.14) 100%)",
+      borderColor: "rgba(192,192,192,0.72)",
+      boxShadow: "0 0 20px rgba(192,192,192,0.15), inset 0 1px 0 rgba(255,255,255,0.38)",
     },
-    className: "border silver-ambient",
+    className: "border",
   },
   3: {
     style: {
-      background: "linear-gradient(120deg, rgba(180,83,9,0.20) 0%, rgba(120,53,15,0.08) 100%)",
-      borderColor: "rgba(217,119,6,0.50)",
+      background: "linear-gradient(135deg, rgba(205,127,50,0.20) 0%, rgba(180,100,30,0.07) 48%, rgba(255,255,255,0.10) 50%, rgba(180,100,30,0.07) 52%, rgba(205,127,50,0.16) 100%)",
+      borderColor: "rgba(205,127,50,0.72)",
+      boxShadow: "0 0 20px rgba(205,127,50,0.18), inset 0 1px 0 rgba(255,255,255,0.30)",
     },
-    className: "border bronze-ambient",
+    className: "border",
   },
 };
 
@@ -231,8 +234,17 @@ function PlayerCard({
       }`}
       style={medal?.style}
     >
+      {/* White glint streak for top 3 */}
+      {medal && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0 rounded-xl"
+          style={{
+            background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.07) 48%, rgba(255,255,255,0.13) 50%, rgba(255,255,255,0.07) 52%, transparent 70%)",
+          }}
+        />
+      )}
       {/* Left — rank + skin */}
-      <div className="flex flex-col items-center justify-center gap-2 px-4 py-4 min-w-[88px] bg-black/20 flex-shrink-0">
+      <div className="flex flex-col items-center justify-center gap-2 px-4 py-4 min-w-[88px] bg-black/20 flex-shrink-0 relative z-10">
         <RankBadge rank={player.rank} />
         <img
           src={`https://mc-heads.net/body/${player.uuid}/80`}
@@ -243,7 +255,7 @@ function PlayerCard({
       </div>
 
       {/* Right — info + tiers */}
-      <div className="flex-1 px-5 py-4 min-w-0">
+      <div className="flex-1 px-5 py-4 min-w-0 relative z-10">
         <div className="flex items-center gap-2.5 flex-wrap">
           <span className="font-black text-lg text-white leading-tight truncate">
             {player.username}
@@ -478,11 +490,19 @@ export default function Leaderboard() {
 
   const isLoading = view === "overall" ? overallLoading : tableLoading;
 
-  /* Merge DB + external for Overall tab, deduplicated by username */
+  /* Merge DB + external for Overall tab, deduplicated by username (case-insensitive) */
   const dbOverallPlayers = overallData?.players ?? [];
-  const dbUsernames = new Set(dbOverallPlayers.map(p => p.username.toLowerCase()));
+  // Deduplicate DB results by username (keep first/best per username)
+  const seenDb = new Set<string>();
+  const dedupedDb = dbOverallPlayers.filter(p => {
+    const key = p.username.toLowerCase();
+    if (seenDb.has(key)) return false;
+    seenDb.add(key);
+    return true;
+  });
+  const dbUsernames = new Set(dedupedDb.map(p => p.username.toLowerCase()));
   const mergedOverall = [
-    ...dbOverallPlayers,
+    ...dedupedDb,
     ...externalOverallPlayers.filter(p => !dbUsernames.has(p.username.toLowerCase())),
   ].map((p, i) => ({ ...p, rank: i + 1 }))
     .filter(p => !search || p.username.toLowerCase().includes(search.toLowerCase()));
