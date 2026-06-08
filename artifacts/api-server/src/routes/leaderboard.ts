@@ -6,6 +6,7 @@ import { GetLeaderboardQueryParams } from "@workspace/api-zod";
 const router: IRouter = Router();
 
 router.get("/leaderboard", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const qp = GetLeaderboardQueryParams.safeParse(req.query);
   const page = qp.success && qp.data.page ? qp.data.page : 1;
   const limit = qp.success && qp.data.limit ? Math.min(qp.data.limit, 100) : 20;
@@ -180,6 +181,7 @@ async function formatEntries(
 // Score = average tier rank (1=HT1 best, 10=LT5 worst). Lower score = higher overall rank.
 // All registered players are included; unranked players appear at the bottom.
 router.get("/leaderboard/overall", async (_req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   // Get all gamemodes
   const gamemodes = await db.select().from(gamemodesTable).orderBy(gamemodesTable.id);
 

@@ -1496,24 +1496,32 @@ function SettingsTab() {
 
 // ── REMOVE TIER (owner panel) ─────────────────────────────────────────────────
 function RemoveTierTab() {
-  const { data: playersData } = useListPlayers({ limit: 500 });
   const { data: gamemodesData } = useListGamemodes();
   const { data: tiersData } = useListTiers({});
   const qc = useQueryClient();
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState<{ id: number; username: string; uuid: string } | null>(null);
   const [removing, setRemoving] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<{ playerId: number; gamemodeId: number; gamemodeName: string } | null>(null);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data: playersData } = useListPlayers(
+    { search: debouncedSearch, limit: 20 } as any,
+    { query: { enabled: debouncedSearch.length >= 1 && !selectedPlayer } as any }
+  );
+
   const players = playersData?.players ?? [];
   const gamemodes = gamemodesData ?? [];
   const tiersAll = (tiersData as any[]) ?? [];
 
-  const filtered = players.filter(p =>
-    !search || p.username.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = players;
 
   const handleRemove = async () => {
     if (!confirm) return;
