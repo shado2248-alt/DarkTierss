@@ -11,13 +11,10 @@ export function TierBadge({ tierName, tierColor, className }: TierBadgeProps) {
     return <span className={cn("text-xs text-muted-foreground", className)}>Unranked</span>;
   }
 
-  const isHT1 = tierName === "HT1";
-
   return (
     <div
       className={cn(
         "inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-bold shadow-sm",
-        isHT1 && "ht1-glow",
         className
       )}
       style={{

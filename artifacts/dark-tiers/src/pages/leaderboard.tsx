@@ -240,7 +240,7 @@ function PlayerCard({
           className="pointer-events-none absolute inset-0 z-0"
           style={{
             background: medal.diagonalColor,
-            clipPath: "polygon(0 0, 440px 0, 360px 100%, 0 100%)",
+            clipPath: "polygon(0 0, 50% 0, 40% 100%, 0 100%)",
           }}
         />
       )}
@@ -250,7 +250,7 @@ function PlayerCard({
           className="pointer-events-none absolute inset-0 z-0"
           style={{
             background: "linear-gradient(105deg, transparent 28%, rgba(255,255,255,0.06) 47%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 53%, transparent 72%)",
-            clipPath: "polygon(0 0, 440px 0, 360px 100%, 0 100%)",
+            clipPath: "polygon(0 0, 50% 0, 40% 100%, 0 100%)",
           }}
         />
       )}
